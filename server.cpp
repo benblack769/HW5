@@ -14,17 +14,16 @@ int main(int argc, char ** argv){
     int c;
     int portnum = 9200;
     int maxmem = 1 << 16;
-    while ( (c = getopt(argc, argv, "mp")) != -1) {
+    while ( (c = getopt(argc, argv, "m:p:")) != -1) {
         switch (c) {
         case 'm':
-            maxmem = stoi(string(optarg));
+            maxmem = atoi(optarg);
             break;
         case 'p':
-            portnum = stoi(string(optarg));
+            portnum = atoi(optarg);
             break;
         }
     }
-    cout << portnum << endl << maxmem << endl;
     run_server(portnum,maxmem);
     return 0;
 }
