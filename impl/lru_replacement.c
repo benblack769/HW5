@@ -134,7 +134,7 @@ struct id_arr ids_to_delete_if_added(policy_t policy, uint32_t val_size){
         struct id_arr retval = {NULL,0,true};
         return retval;
     }
-    user_id_t * id_arr = place_items_in_array(num_del_ids,policy->bottom);
+    user_id_t * id_arr = make_item_array(num_del_ids,policy->bottom);
 
     struct id_arr retval = {id_arr,num_del_ids,true};
     return retval;//caller frees arr
