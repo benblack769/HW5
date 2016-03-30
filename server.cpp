@@ -24,17 +24,48 @@ int main(int argc, char ** argv){
             break;
         }
     }
-    run_server(portnum,maxmem);
+    //try{
+        run_server(portnum,maxmem);
+    //}
+    //catch{
+
+    //}
     return 0;
+}
+string get_message(tcp::socket & socket){
+    const uint64_t max_length = 1 << 16;
+    for (;;)
+    {
+      char data[max_length];
+
+      asio::error_code error;
+      size_t length = sock.read_some(asio::buffer(data,max_length), error);
+      if (error == asio::error::eof)
+        break; // Connection closed cleanly by peer.
+      else if (error)
+        throw asio::system_error(error); // Some other error.
+
+      asio::write(sock, asio::buffer(data, length));
+    }
 }
 void run_server(int portnum,int maxmem){
     asio::io_service my_io_service;
 
     ip::tcp::resolver resolver(my_io_service);
-    ip::tcp::resolver::query query("www.boost.org", "http");
+    ip::tcp::resolver::query query("localhost", "http");
 
     ip::tcp::acceptor acceptor(my_io_service, tcp::endpoint(tcp::v4(), portnum));
 
-    ip::tcp::socket socket(my_io_service);
+    //ip::tcp::socket socket(my_io_service);
+    //acceptor.accept(socket);
+    tcp::socket socket(my_io_service);
+
     acceptor.accept(socket);
+    while(true){
+        std::string out_message = "hi there. How am I doing?";
+        char in_message[10000] = {0};
+        asio::error_code ignored_error;
+        uint64_t length = asio::read(socket, asio::buffer(in_message,10),ignored_error);
+        asio::write(socket, asio::buffer(string(in_message,in_message+length) + out_message), ignored_error);
+    }
 }
