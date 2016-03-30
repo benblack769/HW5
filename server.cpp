@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <string>
+#include "cache.h"
 
 using namespace std;
 
@@ -34,20 +35,36 @@ int main(int argc, char ** argv){
 }
 string get_message(tcp::socket & socket){
     const uint64_t max_length = 1 << 16;
-    for (;;)
-    {
-      char data[max_length];
+    string message;
+    while(true){
+        char buffer[max_length];
 
-      asio::error_code error;
-      size_t length = sock.read_some(asio::buffer(data,max_length), error);
-      if (error == asio::error::eof)
-        break; // Connection closed cleanly by peer.
-      else if (error)
-        throw asio::system_error(error); // Some other error.
+        asio::error_code error;
+        size_t length = sock.read_some(asio::buffer(data,max_length), error);
+        if (error == asio::error::eof)
+            break; // Connection closed cleanly by peer.
+        else if (error)
+            throw asio::system_error(error); // Some other error.
 
-      asio::write(sock, asio::buffer(data, length));
+        message.insert(message.end(),buffer,buffer+length);
+    }
+    return message;
+}
+void write_message(tcp::socket & socket,void * buf,size_t len){
+    asio::error_code error;
+    asio::write(socket, asio::buffer(buf,len), error);
+}
+void act_on_message(tcp::socket & socket,string message){
+    size_t first_endline = message.find_first_of('\n');
+    string first_line = string(message.begin(),message.begin()+first_endline);
+    if(first_line == "GET"){
+        write_message(socket, (string(in_message,in_message+length) + out_message).c_str());
+    }
+    else{
+        exit(1);
     }
 }
+
 void run_server(int portnum,int maxmem){
     asio::io_service my_io_service;
 
