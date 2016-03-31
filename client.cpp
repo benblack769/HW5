@@ -1,7 +1,7 @@
-#include <asio.hpp>
 #include <iostream>
 #include <string>
 #include "cache.h"
+#include "user_con.hpp"
 
 using namespace std;
 
@@ -10,13 +10,23 @@ using namespace asio::ip;
 
 using asio::ip::tcp;
 
+asio::io_service my_io_service;
+ip::tcp::resolver resolver(my_io_service);
+
+string my_port = "9200";
 
 struct cache_obj{
-    asio::io_service service;
-    ip::tcp::socket socket;
-};
-cache_t create_cache(uint64_t maxmem,hash_func h_fn){
+    ip::tcp::resolver::iterator resit;
+    cache_obj(){
+        resit = resolver.resolve({"localhost", "9200"});
+    }
+    void send_message(string head,string word1,string word2){
 
+    }
+};
+
+cache_t create_cache(uint64_t maxmem,hash_func h_fn){
+    return new cache_obj();
 }
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
 
@@ -35,11 +45,10 @@ void destroy_cache(cache_t cache){
 }
 
 int arg(){
-    asio::io_service my_io_service;
-
     ip::tcp::resolver resolver(my_io_service);
     ip::tcp::socket socket(my_io_service);
-    asio::connect(socket, resolver.resolve({"localhost", "8230"}));
+    ip::tcp::resolver::iterator resit = resolver.resolve({"localhost", "9200"});
+    asio::connect(socket, resit);
     while(true){
         std::string req = "this is a request";
         cout << "client writing" << endl;
