@@ -26,7 +26,9 @@ uint64_t cache_space_used(cache_t cache);
 // Destroy all resource connected to a cache object
 void destroy_cache(cache_t cache);
 
-
+#define create_cache_wrapper(maxmem,hash) create_cache(maxmem,hash)
+#define cache_get_wrapper(cache,key,val_size) cache_get(cache,key,val_size)
+/*
 inline cache_t create_cache_wrapper(uint64_t maxmem, hash_func hash){
     return create_cache(maxmem,hash);
 }
@@ -34,3 +36,4 @@ inline cache_t create_cache_wrapper(uint64_t maxmem, hash_func hash){
 inline void *cache_get_wrapper(cache_t cache,uint8_t *key, uint32_t *val_size){
     return cache_get(cache,key,val_size);
 }
+*/

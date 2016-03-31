@@ -1,3 +1,4 @@
 server
 client_tests
 *.txt
+*.o

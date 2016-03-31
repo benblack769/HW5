@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "lrutests.h"
 #include "test_helper.h"
 
@@ -145,7 +146,7 @@ bool evict_on_reset_old_val(){
 
 bool evict_on_failed_reset_old_val(){
     // Adds A and B, then updates B with a value that is larger than the entire
-    // maxmem. We expect both A and B to not be evicted, but this is ambiguous in 
+    // maxmem. We expect both A and B to not be evicted, but this is ambiguous in
     // the spec, so we will make more mention of this later in the writeup
     cache_t c = create_cache_wrapper(3*sizeof(int),NULL);
     key_type k1 = "key1";

@@ -1,7 +1,17 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "basic_test.h"
 #include "test_helper.h"
+#include "cachewrapper.h"
+/*
+cache_t create_cache_wrapper(uint64_t maxmem, hash_func hash){
+    return create_cache(maxmem,hash);
+}
+
+void *cache_get_wrapper(cache_t cache,uint8_t *key, uint32_t *val_size){
+    return cache_get(cache,key,val_size);
+}*/
 // Naive create_cache test - makes sure we don't crash
 // and that we don't end up with a NULL pointer when
 // creating a cache.

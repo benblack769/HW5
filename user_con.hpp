@@ -1,20 +1,18 @@
 #pragma once
 #include <asio.hpp>
 
+using namespace asio;
+using namespace asio::ip;
+
 class user_connection{
 public:
-    ip::tcp::acceptor acceptor;
     tcp::socket socket;
+    user_connection(asio::io_service & service):
+        socket(service){}
 
-    user_connection(asio::io_service & service,uint64_t portnum):
-        acceptor(service, tcp::endpoint(tcp::v4(), portnum)),
-        socket(service)
-    {
-        acceptor.accept(socket);
-    }
-    string get_message(){
+    std::string get_message(){
         const uint64_t max_length = 1 << 16;
-        string message;
+        std::string message;
         while(true){
             char buffer[max_length];
 
@@ -27,17 +25,17 @@ public:
 
             message.insert(message.end(),buffer,buffer+length);
 
-            if(message.find('\n') != string::npos){
+            if(message.find('\n') != std::string::npos){
                 break;
             }
         }
         return message;
     }
-    void write_message(tcp::socket & socket,void * buf,size_t len){
+    void write_message(void * buf,size_t len){
         asio::error_code error;
         asio::write(socket, asio::buffer(buf,len), error);
     }
-    void return_error(string myerr){
-        write_message(socket,myerr.c_str(),myerr.size());
+    void return_error(std::string myerr){
+        write_message(myerr.c_str(),myerr.size());
     }
 };

@@ -6,10 +6,6 @@
 #include <exception>
 #include "user_con.hpp"
 
-
-using namespace asio;
-using namespace asio::ip;
-
 using namespace std;
 
 class ExitException: public exception
@@ -41,10 +37,10 @@ int main(int argc, char ** argv){
     catch(ExitException & except){
         //this is normal, do nothing
     }
-    catch(exception & unexpected_except){
+    /*catch(exception & unexpected_except){
         cout << unexpected_except.what();
        return 1;
-    }
+    }*/
 
     return 0;
 }
@@ -72,6 +68,11 @@ public:
 class server_connection:
     public user_connection{
 public:
+    server_connection(asio::io_service & service,ip::tcp::acceptor & acceptor,uint64_t portnum):
+        user_connection(service)
+    {
+        acceptor.accept(socket);
+    }
 
     void act_on_message(safe_cache & cache, string message){
         size_t end_of_line = min(min(message.find('\n'),message.find('\r')),message.size()+1);
@@ -89,7 +90,7 @@ public:
             val_type v = cache_get(cache.get(),(char *)(info1.c_str()),&val_size);
             if(v != nullptr){
                 string output = make_json(info1,string((char *)(v)));
-                write_message(socket,(char *)(output.c_str()),output.size());
+                write_message((char *)(output.c_str()),output.size());
             }else{
                 return_error("got item not in cache");
             }
@@ -108,7 +109,7 @@ public:
                 throw ExitException();
             }
             else if(info1 == "memsize"){
-                if(cache.get() == nullptr){
+                if(cache_space_used(cache.get()) == 0){
                     cache = safe_cache(create_cache(stoll(info2),NULL));
                 }
                 else{
@@ -126,9 +127,10 @@ public:
 };
 void run_server(int portnum,int maxmem){
     asio::io_service my_io_service;
-    safe_cache cache(nullptr);
+    safe_cache cache(create_cache(maxmem,nullptr));
+    tcp::acceptor acceptor(my_io_service, tcp::endpoint(tcp::v4(), portnum));
     while(true){
-        user_connection con(my_io_service,portnum);
+        server_connection con(my_io_service,acceptor,portnum);
         con.act_on_message(cache,con.get_message());
     }
 }
