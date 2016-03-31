@@ -2,11 +2,14 @@
 #include <string>
 #include "cache.h"
 #include "user_con.hpp"
+#include "json/json.hpp"
 
 using namespace std;
 
 using namespace asio;
 using namespace asio::ip;
+
+using json = nlohmann::json;
 
 using asio::ip::tcp;
 
@@ -42,19 +45,27 @@ struct cache_obj{
         return con.get_message();
     }
 };
+void unpack_json(string json_str, string & key, string & value){
+    json j = json::parse(json_str);
+    key = j["key"];
+    value = j["value"];
+}
 
 cache_t create_cache(uint64_t maxmem,hash_func h_fn){
     return new cache_obj();
 }
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
-    //todo: restrict val to val_size
-    cache->send_message("PUT",key,(char*)(val));
+    char * val_str = (char *)(val);//val is assumed to be a string
+    cache->send_message("PUT",key,string(val_str,val_str + val_size));
 }
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
     string retval = cache->send_message("GET",string(key));
-    val_size = retval.size();
-    cout << retval << endl;
-    return retval.data();//todo:parse json
+
+    string keystr,valstr;
+    unpack_json(retval,keystr,valstr);
+
+    *val_size = valstr.size();
+    return valstr.data();//todo:parse json
 }
 void cache_delete(cache_t cache, key_type key){
     string ignored_val = cache->send_message("DELETE",string(key));
@@ -65,28 +76,4 @@ uint64_t cache_space_used(cache_t cache){
 void destroy_cache(cache_t cache){
     cache->send_message("POST","shutdown");
     delete cache;
-}
-
-bool get_size_test(){
-    cache_t c = create_cache(1000,NULL);
-    key_type k = "4131";
-    val_type v = "12345";
-    cache_set(c,k,v,(sizeof(int)));
-    int size;
-    void * out = cache_get(c,k,&size);
-    destroy_cache(c);
-    if (size != sizeof(int)){
-        return false;
-    }
-    return true;
-}
-
-int main(){
-    if(get_size_test()){
-        cout << "worked!" << endl;
-    }
-    else{
-        cout << "failed" << endl;
-    }
-    return 0;
 }

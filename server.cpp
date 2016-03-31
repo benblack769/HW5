@@ -45,7 +45,7 @@ int main(int argc, char ** argv){
     return 0;
 }
 string make_json(string key,string value){
-    return "{ key: " + key + ", value: " + value + " } ";
+    return "{ \"key\": \"" + key + "\" , \"value\": \"" + value + "\" } ";
 }
 class safe_cache{
 public:
