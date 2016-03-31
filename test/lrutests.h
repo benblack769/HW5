@@ -24,6 +24,8 @@ bool get_reordering();
 // > maxmem, deletes some, adds more, overwrites some, checks again
 bool maxmem_not_excceeded();
 
+bool evict_on_reset_old_val();
+
 // adds some elements, deletes some, and replaces some, and then checks
 // if all the elements are still in the cache
 bool elements_not_evicted_early();

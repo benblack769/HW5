@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stddef.h>
 #include "cachewrapper.h"
 /*
 The core concept behind this file is this:
@@ -27,6 +28,7 @@ typedef enum {INT,STR} val_entry_type;
 void gen_vals();
 void free_vals();
 
+uint32_t val_size(size_t loc, val_entry_type ent_ty);
 cache_t create_no_overflow(uint64_t maxelmt);
 void add_element(cache_t cache,uint64_t elnum,val_entry_type ent_ty);
 void add_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt,val_entry_type ent_ty);

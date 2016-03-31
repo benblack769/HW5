@@ -20,7 +20,7 @@ verbose_level = 0
 output_table = False
 
 execnames = [
-"./client"
+"./client_tests"
 ]
 PASSED_VAL = 0
 FAILED_VAL = 0x92

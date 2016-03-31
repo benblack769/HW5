@@ -1,3 +1,5 @@
+#include <string.h>
+#include <inttypes.h>
 #include "cachewrapper.h"
 #include "test_helper.h"
 #include "test.h"
@@ -17,12 +19,12 @@
 }
 
 int main(int argn,char ** argv){
-	if(argn != 2){
+    if(argn != 2){
 		printf("needs one argument\n");
 		exit(1);
 	}
 	char * num_str = argv[1];
-	uint64_t test_num = strtoumax(num_str,NULL,10);
+    uint64_t test_num = strtoumax(num_str,NULL,10);
 
 	gen_vals();
 

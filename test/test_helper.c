@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "test_helper.h"
 
 int_ty * ivals;
@@ -60,7 +61,7 @@ cache_t create_no_overflow(uint64_t maxelmt){
 }
 void add_element(cache_t cache,uint64_t elnum,val_entry_type ent_ty){
 	uint64_t curkey = to_key_int(elnum);
-	cache_set(cache,&curkey,val_ptr(elnum,ent_ty),val_size(elnum,ent_ty));
+	cache_set(cache,(key_type)(&curkey),val_ptr(elnum,ent_ty),val_size(elnum,ent_ty));
 }
 void add_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt,val_entry_type ent_ty){
 	for(size_t i = start_elmt; i < end_elmt; ++i){
@@ -82,7 +83,7 @@ bool check_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt,val_entr
 }
 void delete_element(cache_t cache,uint64_t elmt){
 	uint64_t curkey = to_key_int(elmt);
-	cache_delete(cache,&curkey);
+	cache_delete(cache,(key_type)(&curkey));
 }
 void delete_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt){
 	for(uint64_t i = start_elmt; i < end_elmt; ++i){
@@ -92,7 +93,7 @@ void delete_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt){
 uint32_t space_of_element(cache_t cache,uint64_t elmt,val_entry_type ent_ty){
 	uint64_t curkey = to_key_int(elmt);
 	uint32_t null_size = 0;
-	val_type null_val = cache_get_wrapper(cache,&curkey,&null_size);
+	val_type null_val = cache_get_wrapper(cache,(key_type)(&curkey),&null_size);
 	return null_val == NULL ? 0 : val_size(elmt,ent_ty);
 }
 uint64_t space_of_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt,val_entry_type ent_ty){
@@ -105,7 +106,7 @@ uint64_t space_of_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt,v
 uint32_t reported_space_of_element(cache_t cache,uint64_t elmt){
 	uint64_t curkey = to_key_int(elmt);
 	uint32_t out_size = 0;
-	val_type null_val = cache_get_wrapper(cache,&curkey,&out_size);
+	val_type null_val = cache_get_wrapper(cache,(key_type)(&curkey),&out_size);
 	return null_val == NULL ? 0 : out_size;
 }
 uint64_t reported_space_of_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt){
@@ -118,7 +119,7 @@ uint64_t reported_space_of_elements(cache_t cache,uint64_t start_elmt,uint64_t e
 bool element_exists(cache_t cache,uint64_t elmt){
 	uint64_t curkey = to_key_int(elmt);
 	uint32_t null_size = 0;
-	val_type val = cache_get_wrapper(cache,&curkey,&null_size);
+	val_type val = cache_get_wrapper(cache,(key_type)(&curkey),&null_size);
 	bool exists = val != NULL;
 	return val != NULL;
 }

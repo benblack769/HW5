@@ -61,8 +61,8 @@ bool crash_on_memoverload(){
 bool get_size_test(){
 	cache_t c = create_cache_wrapper(1000,NULL);
 	key_type k= "key";
-	int v = 12345;
-	cache_set(c,k,&v,(sizeof(int)));
+    int v = "12345";
+    cache_set(c,k,v,(sizeof(int)));
 	int size;
 	void * out = cache_get_wrapper(c,k,&size);
     destroy_cache(c);

@@ -1,3 +1,4 @@
+#include <string.h>
 #include "test.h"
 #include "test_helper.h"
 

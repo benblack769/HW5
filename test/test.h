@@ -24,9 +24,10 @@ bool get_with_null_term_strs_test();
 
 bool delete_not_in();
 bool delete_affect_get_out();
+bool cache_space_preserved();
 
 
-// Below : Unimplemented tests that may or may not be doable. 
+// Below : Unimplemented tests that may or may not be doable.
 
 // bool delete_nonelement_test();
 //bool delete_post_resize_test(); impossible?
