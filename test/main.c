@@ -16,7 +16,7 @@
         exit(failed_code);\
 }
 
-int arg(int argn,char ** argv){
+int main(int argn,char ** argv){
 	if(argn != 2){
 		printf("needs one argument\n");
 		exit(1);

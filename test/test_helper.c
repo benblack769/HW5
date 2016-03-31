@@ -70,7 +70,7 @@ void add_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt,val_entry_
 bool check_element(cache_t cache,uint64_t elmt,val_entry_type ent_ty){
 	uint64_t curkey = to_key_int(elmt);
 	uint32_t null_size = 0;
-	val_type val = cache_get_wrapper(cache,&curkey,&null_size);
+	val_type val = cache_get_wrapper(cache,(key_type)(&curkey),&null_size);
 	return check_val(val,elmt,ent_ty);
 }
 bool check_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt,val_entry_type ent_ty){

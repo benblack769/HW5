@@ -37,10 +37,10 @@ int main(int argc, char ** argv){
     catch(ExitException & except){
         //this is normal, do nothing
     }
-    /*catch(exception & unexpected_except){
+    catch(exception & unexpected_except){
         cout << unexpected_except.what();
        return 1;
-    }*/
+    }
 
     return 0;
 }

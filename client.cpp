@@ -33,13 +33,9 @@ struct cache_obj{
     ip::tcp::resolver::iterator resit;
     cache_obj(){
         resit = resolver.resolve({"localhost", my_port});
-        //tcp::socket socket(my_io_service);
-        //asio::connect(socket, resit);
-       // cout << "connected" << endl;
     }
     string send_message(string head,string word1,string word2=string()){
         client_connection con(my_io_service,resit);
-        cout << "connection established" << endl;
         string finstr = head + " /" + word1 + (word2.size() == 0 ? "" : "/" + word2) + "\n";
         con.write_message(finstr.data(),finstr.size());
         return con.get_message();
