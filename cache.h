@@ -8,9 +8,10 @@ typedef const void *val_type;
 
 // For a given key string, return a pseudo-random integer:
 typedef uint64_t (*hash_func)(key_type key);
-
+extern "C"{
 // Create a new cache object with a given maximum memory capacity.
 cache_t create_cache(uint64_t maxmem,hash_func h_fn);
+
 
 // Add a <key, value> pair to the cache.
 // If key already exists, it will overwrite the old value.
@@ -30,3 +31,5 @@ uint64_t cache_space_used(cache_t cache);
 
 // Destroy all resource connected to a cache object
 void destroy_cache(cache_t cache);
+}
+

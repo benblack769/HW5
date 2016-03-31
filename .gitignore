@@ -1,4 +1,3 @@
 server
 client_tests
-
- 
+*.txt

@@ -1,3 +1,4 @@
+#pragma once
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -8,9 +9,8 @@ typedef const uint8_t *key_type;
 typedef const void *val_type;
 typedef uint64_t (*hash_func)(key_type key);
 
-#define cache_create_wrapper cache_create
-#define cache_get_wrapper cache_get
-
+cache_t create_cache(uint64_t maxmem,hash_func h_fn);
+val_type cache_get(cache_t cache, key_type key, uint32_t *val_size);
 // Add a <key, value> pair to the cache.
 // If key already exists, it will overwrite the old value.
 // If maxmem capacity is exceeded, sufficient values will be removed
@@ -27,6 +27,10 @@ uint64_t cache_space_used(cache_t cache);
 void destroy_cache(cache_t cache);
 
 
-cache_t create_cache_wrapper(uint64_t maxmem, hash_func hash);
+inline cache_t create_cache_wrapper(uint64_t maxmem, hash_func hash){
+    return create_cache(maxmem,hash);
+}
 
-void *cache_get_wrapper(cache_t cache,uint8_t *key, uint32_t *val_size);
+inline void *cache_get_wrapper(cache_t cache,uint8_t *key, uint32_t *val_size){
+    return cache_get(cache,key,val_size);
+}

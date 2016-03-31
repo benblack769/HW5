@@ -1,6 +1,7 @@
 #include <asio.hpp>
 #include <iostream>
 #include <string>
+#include "cache.h"
 
 using namespace std;
 
@@ -9,7 +10,7 @@ using namespace asio::ip;
 
 using asio::ip::tcp;
 
-/*
+
 struct cache_obj{
     asio::io_service service;
     ip::tcp::socket socket;
@@ -32,8 +33,8 @@ uint64_t cache_space_used(cache_t cache){
 void destroy_cache(cache_t cache){
     delete cache;
 }
-*/
-int main(){
+
+int arg(){
     asio::io_service my_io_service;
 
     ip::tcp::resolver resolver(my_io_service);
