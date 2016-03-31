@@ -60,8 +60,8 @@ bool crash_on_memoverload(){
 // Naive cache_get test - tests to see if we correctly update size
 bool get_size_test(){
 	cache_t c = create_cache_wrapper(1000,NULL);
-	key_type k= "key";
-    int v = "12345";
+	key_type k = "key";
+    char * v = "12345";
     cache_set(c,k,v,(sizeof(int)));
 	int size;
 	void * out = cache_get_wrapper(c,k,&size);
@@ -78,11 +78,11 @@ bool get_size_test(){
 bool get_val_test(){
 	cache_t c = create_cache_wrapper(1000,NULL);
 	key_type k= "key";
-	int v = 12345;
-	cache_set(c,k,&v,(sizeof(int)));
+    char * v = "12345";
+	cache_set(c,k,v,strlen(v)+1);
 	int size;
 	void * out = cache_get_wrapper(c,k,&size);
-    bool worked = v == *(int*)out;
+    bool worked = strcmp(v,(char*)(out)) == 0;
     destroy_cache(c);
     return worked;
 }
@@ -92,8 +92,8 @@ bool get_val_test(){
 bool delete_test(){
 	cache_t c = create_cache_wrapper(1000,NULL);
 	key_type k= "key";
-	int v = 12345;
-	cache_set(c,k,&v,(sizeof(int)));
+    char * v = "12345";
+	cache_set(c,k,v,(sizeof(int)));
 	cache_delete(c,k);
 	destroy_cache(c);
 	return true;
