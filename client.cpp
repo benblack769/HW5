@@ -20,10 +20,10 @@ string my_port = "9200";
 
 
 class client_connection:
-    public user_connection{
+    public tcp_connection{
 public:
     client_connection(asio::io_service & service,ip::tcp::resolver::iterator & resit):
-        user_connection(service)
+        tcp_connection(service)
     {
         asio::connect(socket, resit);
     }
