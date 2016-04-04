@@ -4,3 +4,4 @@ client
 *.txt
 *.o
 *.autosave
+*.exe

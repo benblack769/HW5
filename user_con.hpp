@@ -36,6 +36,9 @@ public:
     void write_message(void * buf,size_t len){
         asio::error_code error;
         asio::write(socket, asio::buffer(buf,len), error);
+        if (error){
+            throw asio::system_error(error);
+        }
     }
     void return_error(std::string myerr){
         write_message(myerr.c_str(),myerr.size());
