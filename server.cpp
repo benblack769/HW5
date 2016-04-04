@@ -5,6 +5,7 @@
 #include "cache.h"
 #include <exception>
 #include "user_con.hpp"
+#include "serv_obj.hpp"
 
 using namespace std;
 
@@ -64,70 +65,49 @@ public:
         return impl;
     }
 };
-class tcp_serv_connection:
-    public tcp_connection{
-    tcp_serv_connection(asio::io_service & service,ip::tcp::acceptor & acceptor,uint64_t portnum):
-        tcp_connection(service)
-    {
-        acceptor.accept(socket);
-    }
-};
-class udp_serv_connection:
-        public udp_connection{
-    udp_serv_connection(asio::io_service & service,ip::tcp::acceptor & acceptor,uint64_t portnum):
-        udp_connection(service)
-    {
-        socket.connect(udp::endpoint(udp::v4(), portnum));
-    }
-};
 
-class cache_connection:
-    public serv_con_ty{
-public:
-    safe_cache cache;//does not own,object must be destroyed before cache is
-
-    cache_connection(asio::io_service & service,ip::tcp::acceptor & acceptor,uint64_t udp_portnum,uint64_t tcp_portnum):
-        serv_con_ty(service,acceptor,portnum)
-    {
+template<typename con_ty>
+void get(con_ty & con,string key){
+    uint32_t val_size = 0;
+    val_type v = cache_get(cache.get(),(char *)(key.c_str()),&val_size);
+    if(v != nullptr){
+        string output = make_json(key,string((char *)(v)));
+        con.write_message((char *)(output.c_str()),output.size());
+    }else{
+        con.return_error("got item not in cache");
     }
-
-    void get(udp_serv_connection & udp_con,string key){
-        uint32_t val_size = 0;
-        val_type v = cache_get(cache.get(),(char *)(key.c_str()),&val_size);
-        if(v != nullptr){
-            string output = make_json(key,string((char *)(v)));
-            udp_con.write_message((char *)(output.c_str()),output.size());
-        }else{
-            udp_con.return_error("got item not in cache");
-        }
+}
+template<typename con_ty>
+void put(con_ty & con,string key,string value){
+    cache_set(cache.get(),(key_type)(key.c_str()),(void*)(value.c_str()),value.size());
+}
+template<typename con_ty>
+void delete_(con_ty & con,string key){
+    cache_delete(cache.get(),key.c_str());
+}
+template<typename con_ty>
+void head(con_ty & con){
+    //todo:implement!
+}
+template<typename con_ty>
+void post(con_ty & con,string post_type,string extrainfo){
+    if(post_type == "shutdown"){
+        throw ExitException();
     }
-    void put(string key,string value){
-        cache_set(cache.get(),(key_type)(key.c_str()),(void*)(value.c_str()),value.size());
-    }
-    void delete_(string key){
-        cache_delete(cache.get(),key.c_str());
-    }
-    void head(){
-        //todo:implement!
-    }
-    void post(udp_serv_connection & udp_con,string post_type,string extrainfo){
-        if(post_type == "shutdown"){
-            throw ExitException();
-        }
-        else if(post_type == "memsize"){
-            if(cache_space_used(cache.get()) == 0){
-                cache = safe_cache(create_cache(stoll(extrainfo),NULL));
-            }
-            else{
-                udp_con.return_error("cache already created!");//todo: replace with valid HTTP message
-            }
+    else if(post_type == "memsize"){
+        if(cache_space_used(cache.get()) == 0){
+            cache = safe_cache(create_cache(stoll(extrainfo),NULL));
         }
         else{
-            throw runtime_error("bad POST message");
+            con.return_error("cache already created!");//todo: replace with valid HTTP message
         }
     }
-};
-void act_on_message(cache_connection & con, string message){
+    else{
+        throw runtime_error("bad POST message");
+    }
+}
+template<typename con_ty>
+void act_on_message(con_ty & con, string message){
     size_t end_of_line = min(min(message.find('\n'),message.find('\r')),message.size()+1);
 
     size_t first_space = message.find(' ');
@@ -139,24 +119,137 @@ void act_on_message(cache_connection & con, string message){
     string info1 = string(begining+first_slash+1,begining+min(second_slash,end_of_line));
     string info2 = string(begining+second_slash+1,begining+end_of_line);
     if(fword == "GET"){
-        con.get(info1);
+        get(con,info1);
     }
     else if(fword == "PUT"){
-        con.put(info1,info2);
+        put(con,info1,info2);
     }
     else if(fword == "DELETE"){
-        con.delete_(info1);
+        delete_(con,info1);
     }
     else if(fword == "HEAD"){
-        con.head();
+        head(con);
     }
     else if(fword == "POST"){
-        con.post(info1,info2);
+        post(con,info1,info2);
     }
     else{
         throw runtime_error("bad message");
     }
 }
+//the connection and server classes are mostly taken from the library documentation
+class tcp_connection
+  : public boost::enable_shared_from_this<tcp_connection>
+{
+public:
+  typedef boost::shared_ptr<tcp_connection> pointer;
+
+  static pointer create(asio::io_service& io_service){
+    return pointer(new tcp_connection(io_service));
+  }
+
+  tcp::socket& socket(){
+    return socket_;
+  }
+
+  void start(){
+    asio::async_read(socket,asio::buffer(buf,bufsize),boost::bind(&tcp_connection::handle_write, shared_from_this()))
+  }
+  void finalize(string & outmessage){
+      asio::async_write(socket_, asio::buffer(outmessage),
+          boost::bind(&tcp_connection::handle_write, shared_from_this()));
+  }
+
+private:
+  tcp_connection(asio::io_service& io_service)
+    : socket_(io_service)
+  {
+  }
+  void handle_read(const asio::error_code& error){
+
+  }
+
+  void handle_write()
+  {
+  }
+
+  tcp::socket socket_;
+  char buf[bufsize];
+};
+
+class tcp_server
+{
+public:
+  tcp_server(asio::io_service& io_service)
+    : acceptor_(io_service, tcp::endpoint(tcp::v4(), 13))
+  {
+    start_accept();
+  }
+
+private:
+  void start_accept()
+  {
+    tcp_connection::pointer new_connection =
+      tcp_connection::create(acceptor_.get_io_service());
+
+    acceptor_.async_accept(new_connection->socket(),
+        boost::bind(&tcp_server::handle_accept, this, new_connection,
+          asio::placeholders::error));
+  }
+
+  void handle_accept(tcp_connection::pointer new_connection,
+      const asio::error_code& error)
+  {
+    if (!error)
+    {
+      new_connection->start();
+    }
+
+    start_accept();
+  }
+
+  tcp::acceptor acceptor_;
+};
+
+class udp_server
+{
+public:
+  udp_server(asio::io_service& io_service)
+    : socket_(io_service, udp::endpoint(udp::v4(), 13))
+  {
+    start_receive();
+  }
+
+private:
+  void start_receive()
+  {
+    socket_.async_receive_from(
+        asio::buffer(recv_buffer_), remote_endpoint_,
+        boost::bind(&udp_server::handle_receive, this,
+          asio::placeholders::error));
+  }
+
+  void handle_receive(const asio::error_code& error)
+  {
+    if (!error){
+      boost::shared_ptr<std::string> message(
+          new std::string(make_daytime_string()));
+
+      socket_.async_send_to(asio::buffer(*message), remote_endpoint_,
+          boost::bind(&udp_server::handle_send, this, message));
+
+      start_receive();
+    }
+  }
+
+  void handle_send(boost::shared_ptr<std::string> /*message*/)
+  {
+  }
+  udp::socket socket_;
+  udp::endpoint remote_endpoint_;
+  boost::array<char, bufsize> recv_buffer_;
+};
+
 void run_server(int tcp_port,int udp_port,int maxmem){
     asio::io_service my_io_service;
     tcp::acceptor acceptor(my_io_service, tcp::endpoint(tcp::v4(), portnum));
