@@ -17,7 +17,7 @@ asio::io_service my_io_service;
 ip::tcp::resolver tcp_resolver(my_io_service);
 ip::udp::resolver udp_resolver(my_io_service);
 
-string my_port = "9200";
+string my_port = "9201";
 
 class client_udp_connection:
     public udp_connection{
@@ -72,7 +72,7 @@ void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
     cache->send_message_tcp("PUT",key,string(val_str,val_str + val_size));
 }
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
-    string retval = cache->send_message_udp("GET",string(key));
+    string retval = cache->send_message_tcp("GET",string(key));
 
     string keystr,valstr;
     unpack_json(retval,keystr,valstr);

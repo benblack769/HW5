@@ -10,14 +10,14 @@ using asio::ip::udp;
 
 constexpr size_t bufsize = 1 << 16;
 
-class tcp_connection
-  : public boost::enable_shared_from_this<tcp_connection>
+class tcp_con
+  : public boost::enable_shared_from_this<tcp_con>
 {
 public:
-  typedef boost::shared_ptr<tcp_connection> pointer;
+  typedef boost::shared_ptr<tcp_con> pointer;
 
   static pointer create(asio::io_service& io_service){
-    return pointer(new tcp_connection(io_service));
+    return pointer(new tcp_con(io_service));
   }
 
   tcp::socket& socket(){
@@ -28,11 +28,11 @@ public:
     message_ = make_daytime_string();
 
     asio::async_write(socket_, asio::buffer(message_),
-        boost::bind(&tcp_connection::handle_write, shared_from_this()));
+        boost::bind(&tcp_con::handle_write, shared_from_this()));
   }
 
 private:
-  tcp_connection(asio::io_service& io_service)
+  tcp_con(asio::io_service& io_service)
     : socket_(io_service)
   {
   }
@@ -57,15 +57,15 @@ public:
 private:
   void start_accept()
   {
-    tcp_connection::pointer new_connection =
-      tcp_connection::create(acceptor_.get_io_service());
+    tcp_con::pointer new_connection =
+      tcp_con::create(acceptor_.get_io_service());
 
     acceptor_.async_accept(new_connection->socket(),
         boost::bind(&tcp_server::handle_accept, this, new_connection,
           asio::placeholders::error));
   }
 
-  void handle_accept(tcp_connection::pointer new_connection,
+  void handle_accept(tcp_con::pointer new_connection,
       const asio::error_code& error)
   {
     if (!error)

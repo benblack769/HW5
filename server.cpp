@@ -4,10 +4,14 @@
 #include <memory>
 #include "cache.h"
 #include <exception>
+#include <boost/bind.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/enable_shared_from_this.hpp>
+#include <ostream>
 #include "user_con.hpp"
-#include "serv_obj.hpp"
 
 using namespace std;
+constexpr size_t bufsize = 1 << 18;
 
 class ExitException: public exception
 {
@@ -20,7 +24,7 @@ void run_server(int tcp_port, int udp_port, int maxmem);
 int main(int argc, char ** argv){
     //take mainly off the get_opt wikipedia page
     int c;
-    int portnum = 9200;
+    int portnum = 9201;
     int maxmem = 1 << 16;
     while ( (c = getopt(argc, argv, "m:p:")) != -1) {
         switch (c) {
@@ -69,7 +73,7 @@ public:
 template<typename con_ty>
 void get(con_ty & con,string key){
     uint32_t val_size = 0;
-    val_type v = cache_get(cache.get(),(char *)(key.c_str()),&val_size);
+    val_type v = cache_get(con.cache(),(char *)(key.c_str()),&val_size);
     if(v != nullptr){
         string output = make_json(key,string((char *)(v)));
         con.write_message((char *)(output.c_str()),output.size());
@@ -79,11 +83,11 @@ void get(con_ty & con,string key){
 }
 template<typename con_ty>
 void put(con_ty & con,string key,string value){
-    cache_set(cache.get(),(key_type)(key.c_str()),(void*)(value.c_str()),value.size());
+    cache_set(con.cache(),(key_type)(key.c_str()),(void*)(value.c_str()),value.size());
 }
 template<typename con_ty>
 void delete_(con_ty & con,string key){
-    cache_delete(cache.get(),key.c_str());
+    cache_delete(con.cache(),key.c_str());
 }
 template<typename con_ty>
 void head(con_ty & con){
@@ -95,8 +99,8 @@ void post(con_ty & con,string post_type,string extrainfo){
         throw ExitException();
     }
     else if(post_type == "memsize"){
-        if(cache_space_used(cache.get()) == 0){
-            cache = safe_cache(create_cache(stoll(extrainfo),NULL));
+        if(cache_space_used(con.cache()) == 0){
+            *con.port_cache = safe_cache(create_cache(stoll(extrainfo),NULL));
         }
         else{
             con.return_error("cache already created!");//todo: replace with valid HTTP message
@@ -137,15 +141,19 @@ void act_on_message(con_ty & con, string message){
         throw runtime_error("bad message");
     }
 }
+string to_string(asio::streambuf & b){
+    asio::streambuf::const_buffers_type bufs = b.data();
+    return std::string(asio::buffers_begin(bufs), asio::buffers_begin(bufs) + b.size());
+}
 //the connection and server classes are mostly taken from the library documentation
-class tcp_connection
-  : public boost::enable_shared_from_this<tcp_connection>
+class tcp_con
+  : public boost::enable_shared_from_this<tcp_con>
 {
 public:
-  typedef boost::shared_ptr<tcp_connection> pointer;
+  typedef boost::shared_ptr<tcp_con> pointer;
 
-  static pointer create(asio::io_service& io_service){
-    return pointer(new tcp_connection(io_service));
+  static pointer create(asio::io_service& io_service,safe_cache * cache){
+    return pointer(new tcp_con(io_service,cache));
   }
 
   tcp::socket& socket(){
@@ -153,20 +161,29 @@ public:
   }
 
   void start(){
-    asio::async_read(socket,asio::buffer(buf,bufsize),boost::bind(&tcp_connection::handle_write, shared_from_this()))
-  }
-  void finalize(string & outmessage){
-      asio::async_write(socket_, asio::buffer(outmessage),
-          boost::bind(&tcp_connection::handle_write, shared_from_this()));
-  }
+      asio::async_read_until(socket_,b,'\n',
+                         boost::bind(&tcp_con::handle_read,shared_from_this(),asio::placeholders::error(),asio::placeholders::bytes_transferred()));
 
-private:
-  tcp_connection(asio::io_service& io_service)
-    : socket_(io_service)
+  }
+  void write_message(void * buf,size_t len){
+      asio::async_write(socket_, asio::buffer(buf,len),
+                        boost::bind(&tcp_con::handle_write, shared_from_this()));
+  }
+  void return_error(std::string myerr){
+      write_message(myerr.c_str(),myerr.size());
+  }
+  cache_t & cache(){
+      return port_cache->impl;
+  }
+  tcp_con(asio::io_service& io_service,safe_cache * in_cache)
+    : socket_(io_service),
+      port_cache(in_cache)
   {
   }
-  void handle_read(const asio::error_code& error){
 
+  void handle_read(const asio::error_code& error,
+                   size_t bytes_written){
+      act_on_message(*this, to_string(b));
   }
 
   void handle_write()
@@ -174,30 +191,31 @@ private:
   }
 
   tcp::socket socket_;
-  char buf[bufsize];
+  safe_cache * port_cache;//non-owning
+  asio::streambuf b;
 };
 
 class tcp_server
 {
 public:
-  tcp_server(asio::io_service& io_service)
-    : acceptor_(io_service, tcp::endpoint(tcp::v4(), 13))
+  tcp_server(asio::io_service& io_service,int portnum,safe_cache & in_cache)
+    : acceptor_(io_service, tcp::endpoint(tcp::v4(), portnum)),
+      port_cache(&in_cache)
   {
-    start_accept();
   }
 
-private:
   void start_accept()
   {
-    tcp_connection::pointer new_connection =
-      tcp_connection::create(acceptor_.get_io_service());
+    tcp_con::pointer new_connection =
+      tcp_con::create(acceptor_.get_io_service(),port_cache);
 
     acceptor_.async_accept(new_connection->socket(),
         boost::bind(&tcp_server::handle_accept, this, new_connection,
           asio::placeholders::error));
   }
+private:
 
-  void handle_accept(tcp_connection::pointer new_connection,
+  void handle_accept(tcp_con::pointer new_connection,
       const asio::error_code& error)
   {
     if (!error)
@@ -208,9 +226,9 @@ private:
     start_accept();
   }
 
+  safe_cache * port_cache;//non-owning
   tcp::acceptor acceptor_;
 };
-
 class udp_server
 {
 public:
@@ -219,45 +237,51 @@ public:
   {
     start_receive();
   }
+  void write_message(void * buf,size_t len){
+        socket_.async_send(asio::buffer(buf,len),
+                        boost::bind(&tcp_con::handle_write,this));
+  }
+  void return_error(std::string myerr){
+      write_message(myerr.c_str(),myerr.size());
+  }
+  cache_t & cache(){
+      return port_cache->impl;
+  }
 
-private:
   void start_receive()
   {
-    socket_.async_receive_from(
-        asio::buffer(recv_buffer_), remote_endpoint_,
-        boost::bind(&udp_server::handle_receive, this,
+    boost::shared_ptr<asio::streambuf> sb (new asio::streambuf());
+    socket_.receive_from(
+        sb, remote_endpoint_,
+        boost::bind(&udp_server::handle_receive, this,sb,
           asio::placeholders::error));
   }
 
-  void handle_receive(const asio::error_code& error)
+  void handle_receive(boost::shared_ptr<asio::streambuf> sb,const asio::error_code& error)
   {
     if (!error){
-      boost::shared_ptr<std::string> message(
-          new std::string(make_daytime_string()));
-
-      socket_.async_send_to(asio::buffer(*message), remote_endpoint_,
-          boost::bind(&udp_server::handle_send, this, message));
-
-      start_receive();
+        act_on_message(*this,to_string(*sb));
+        start_receive();
     }
   }
 
-  void handle_send(boost::shared_ptr<std::string> /*message*/)
+  void handle_send(boost::shared_ptr<std::string>)
   {
   }
   udp::socket socket_;
+  safe_cache * port_cache;//non-owning
   udp::endpoint remote_endpoint_;
-  boost::array<char, bufsize> recv_buffer_;
 };
 
 void run_server(int tcp_port,int udp_port,int maxmem){
     asio::io_service my_io_service;
-    tcp::acceptor acceptor(my_io_service, tcp::endpoint(tcp::v4(), portnum));
-    cache_connection con(my_io_service,acceptor,udp_port,tcp_port);
-    while(true){
-        act_on_message(con,con.get_message());
-    }
+    safe_cache serv_cache(create_cache(maxmem,nullptr));
+    tcp_server con(my_io_service,tcp_port,serv_cache);
+    con.start_accept();
+
+    my_io_service.run();
 }
+
 /*
 //
 // blocking_udp_client.cpp

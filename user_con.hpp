@@ -6,10 +6,10 @@
 using namespace asio;
 using namespace asio::ip;
 
-class tcp_con{
+class tcp_connection{
 public:
     tcp::socket socket;
-    tcp_con(asio::io_service & service):
+    tcp_connection(asio::io_service & service):
         socket(service){}
 
     std::string get_message(){
