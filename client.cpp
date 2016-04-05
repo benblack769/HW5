@@ -18,7 +18,7 @@ ip::tcp::resolver tcp_resolver(my_io_service);
 ip::udp::resolver udp_resolver(my_io_service);
 
 string tcp_port = "9201";
-string udp_port = "9202";
+string udp_port = "9204";
 
 class client_udp_connection:
     public udp_connection{
@@ -48,13 +48,13 @@ struct cache_obj{
     }
     string send_message_tcp(bool getmes,string head,string word1,string word2=string()){
         client_tcp_connection con(my_io_service,resit);
-        string finstr = head + " /" + word1 + (word2.size() == 0 ? "" : "/" + word2) + "\n" + string(' ',10000);
+        string finstr = head + " /" + word1 + (word2.size() == 0 ? "" : "/" + word2) + "\n";
         con.write_message(finstr.data(),finstr.size());
         return getmes ? con.get_message() : string();
     }
     string send_message_udp(bool getmes,string head,string word1,string word2=string()){
         client_udp_connection con(my_io_service,reciver);
-        string finstr = head + " /" + word1 + (word2.size() == 0 ? "" : "/" + word2) + "\n" + string(' ',10000);
+        string finstr = head + " /" + word1 + (word2.size() == 0 ? "" : "/" + word2) + "\n";
         con.write_message(finstr);
         return getmes ? con.get_message() : string();
     }
@@ -73,9 +73,10 @@ void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
     cache->send_message_udp(false,"PUT",key,string(val_str,val_str + val_size));
 }
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
-    string retval = cache->send_message_udp(true,"GET",string(key));
+    string keystr(key);
+    string retval = cache->send_message_udp(true,"GET",keystr);
 
-    string keystr,valstr;
+    string valstr;
     unpack_json(retval,keystr,valstr);
 
     *val_size = valstr.size();
@@ -88,6 +89,6 @@ uint64_t cache_space_used(cache_t cache){
     return 0;//not implemented
 }
 void destroy_cache(cache_t cache){
-    cache->send_message_udp(true,"POST","shutdown");
+    cache->send_message_udp(false,"POST","shutdown");
     delete cache;
 }

@@ -36,7 +36,7 @@ int main(int argc, char ** argv){
         }
     }
     try{
-        run_server(portnum,9202,maxmem);
+        run_server(portnum,9204,maxmem);
     }
     catch(ExitException & except){
         //this is normal, do nothing
@@ -49,6 +49,7 @@ int main(int argc, char ** argv){
     return 0;
 }
 string make_json(string key,string value){
+    key.pop_back();
     return "{ \"key\": \"" + key + "\" , \"value\": \"" + value + "\" } \n";
 }
 class safe_cache{
@@ -122,6 +123,7 @@ void act_on_message(con_ty & con, string message){
     string fword = string(begining,begining+first_space);
     string info1 = string(begining+first_slash+1,begining+min(second_slash,end_of_line));
     string info2 = string(begining+second_slash+1,begining+end_of_line);
+
     if(fword == "GET"){
         get(con,info1);
     }
@@ -233,17 +235,17 @@ class udp_server
 {
 public:
   udp_server(asio::io_service& io_service,int udp_port,safe_cache & incache)
-    : socket_(io_service, udp::endpoint(udp::v4(), udp_port)),
+    : socket_(io_service,udp::endpoint(udp::v4(), udp_port)),
       port_cache(&incache)
   {
-    start_receive();
   }
   void write_message(string s){
       vector<bufarr> bufvec;
       make_buf_vec(bufvec,s);
+
       for(bufarr & arr : bufvec){
-        socket_.async_send(asio::buffer(arr),
-                    boost::bind(&udp_server::handle_send,this));
+        socket_.async_send_to(asio::buffer(arr),endpoint,
+                   boost::bind(&udp_server::handle_send,this,asio::placeholders::error(),asio::placeholders::bytes_transferred()));
       }
   }
   void return_error(std::string myerr){
@@ -260,7 +262,7 @@ public:
   }
   void receive_more(){
       bufvec.emplace_back();
-      socket_.async_receive(asio::buffer(bufvec.back()),
+      socket_.async_receive_from(asio::buffer(bufvec.back()),endpoint,
                           boost::bind(&udp_server::handle_receive, this,
                           asio::placeholders::error,asio::placeholders::bytes_transferred()));
   }
@@ -275,18 +277,22 @@ public:
                 return;
             }
             act_on_message(*this,message);
+            start_receive();
         }
         else{
             receive_more();
         }
     }
+    else{
+        start_receive();
+    }
   }
-  void handle_send()
+  void handle_send(const asio::error_code& error,size_t bytes_written)
   {
   }
   udp::socket socket_;
+  udp::endpoint endpoint;
   safe_cache * port_cache;//non-owning
-  udp::endpoint remote_endpoint_;
   std::vector<bufarr> bufvec;
 };
 
@@ -294,10 +300,10 @@ void run_server(int tcp_port,int udp_port,int maxmem){
     asio::io_service my_io_service;
     safe_cache serv_cache(create_cache(maxmem,nullptr));
 
-    tcp_server tcon(my_io_service,tcp_port,serv_cache);
+    //tcp_server tcon(my_io_service,tcp_port,serv_cache);
     udp_server ucon(my_io_service,udp_port,serv_cache);
 
-    tcon.start_accept();
+    //tcon.start_accept();
     ucon.start_receive();
 
     my_io_service.run();

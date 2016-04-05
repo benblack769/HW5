@@ -2,6 +2,7 @@
 #include <asio.hpp>
 #include <vector>
 #include <array>
+#include <unistd.h>
 //#include <bind/bind.hpp>
 //#include <ctime>
 
@@ -21,7 +22,7 @@ public:
         std::string message;
         while(true){
             char buffer[max_length];
-
+            usleep(10);
             asio::error_code error;
             size_t length = socket.read_some(asio::buffer(buffer,max_length), error);
             if (error == asio::error::eof)
@@ -77,7 +78,7 @@ bool make_str(std::vector<bufarr> & inbuf,std::string & out_buffstr,char delim){
         }
         for(size_t pos = sizeof(uint32_t); pos < buf.size();pos++){
             if(buf[pos] == delim){
-                out_buffstr.insert(out_buffstr.end(),buf.begin()+sizeof(uint32_t),buf.begin()+delim);
+                out_buffstr.insert(out_buffstr.end(),buf.begin()+sizeof(uint32_t),buf.begin()+pos);
                 return true;
             }
         }
@@ -119,21 +120,22 @@ public:
     std::string get_message(){
         std::vector<bufarr> bufvec;
         while(true){
+
+            asio::error_code err;
             bufvec.emplace_back();
             bufarr & buf = bufvec.back();
             size_t length = socket.receive(asio::buffer(buf));
 
             for(size_t pos = sizeof(uint32_t);pos < length; pos++){
                 if(buf[pos] == '\n'){
-                    break;
+                    std::string message;
+                    if(make_str(bufvec,message,'\n'))
+                        return message;
+                    else
+                        return "";
                 }
             }
         }
-        std::string message;
-        if(make_str(bufvec,message,'\n'))
-            return message;
-        else
-            return "";
     }
     void write_message(std::string s){
         std::vector<bufarr> bufvec;
