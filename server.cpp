@@ -15,7 +15,7 @@ class ExitException: public exception
     return "Exited cleanly";
   }
 };
-void run_server(int portnum,int maxmem);
+void run_server(int tcp_port, int udp_port, int maxmem);
 int main(int argc, char ** argv){
     //take mainly off the get_opt wikipedia page
     int c;
@@ -32,7 +32,7 @@ int main(int argc, char ** argv){
         }
     }
     try{
-        run_server(portnum,maxmem);
+        run_server(portnum,8000,maxmem);
     }
     catch(ExitException & except){
         //this is normal, do nothing
@@ -65,54 +65,61 @@ public:
     }
 };
 class tcp_serv_connection:
-    public udp_connection{
-    cache_connection(asio::io_service & service,ip::tcp::acceptor & acceptor,uint64_t portnum):
-        tcp_serv_connection(service)
+    public tcp_connection{
+    tcp_serv_connection(asio::io_service & service,ip::tcp::acceptor & acceptor,uint64_t portnum):
+        tcp_connection(service)
     {
         acceptor.accept(socket);
     }
 };
-class udp_serv_connection{
-
-};
-class cache_connection:
-    public udp_connection{
-public:
-    safe_cache * cache;//does not own,object must be destroyed before cache is
-    cache_connection(asio::io_service & service,ip::tcp::acceptor & acceptor,uint64_t portnum):
+class udp_serv_connection:
+        public udp_connection{
+    udp_serv_connection(asio::io_service & service,ip::tcp::acceptor & acceptor,uint64_t portnum):
         udp_connection(service)
     {
-        acceptor.accept(socket);
+        socket.connect(udp::endpoint(udp::v4(), portnum));
     }
-    void get(string key){
+};
+
+class cache_connection:
+    public serv_con_ty{
+public:
+    safe_cache cache;//does not own,object must be destroyed before cache is
+
+    cache_connection(asio::io_service & service,ip::tcp::acceptor & acceptor,uint64_t udp_portnum,uint64_t tcp_portnum):
+        serv_con_ty(service,acceptor,portnum)
+    {
+    }
+
+    void get(udp_serv_connection & udp_con,string key){
         uint32_t val_size = 0;
-        val_type v = cache_get(cache->get(),(char *)(info1.c_str()),&val_size);
+        val_type v = cache_get(cache.get(),(char *)(key.c_str()),&val_size);
         if(v != nullptr){
-            string output = make_json(info1,string((char *)(v)));
-            write_message((char *)(output.c_str()),output.size());
+            string output = make_json(key,string((char *)(v)));
+            udp_con.write_message((char *)(output.c_str()),output.size());
         }else{
-            return_error("got item not in cache");
+            udp_con.return_error("got item not in cache");
         }
     }
     void put(string key,string value){
-        cache_set(cache->get(),(key_type)(info1.c_str()),(void*)(info2.c_str()),info2.size());
+        cache_set(cache.get(),(key_type)(key.c_str()),(void*)(value.c_str()),value.size());
     }
     void delete_(string key){
-        cache_delete(cache->get(),info1.c_str());
+        cache_delete(cache.get(),key.c_str());
     }
     void head(){
         //todo:implement!
     }
-    void post(string post_type,string extrainfo){
+    void post(udp_serv_connection & udp_con,string post_type,string extrainfo){
         if(post_type == "shutdown"){
             throw ExitException();
         }
         else if(post_type == "memsize"){
-            if(cache_space_used(cache->get()) == 0){
-                *cache = safe_cache(create_cache(stoll(extrainfo),NULL));
+            if(cache_space_used(cache.get()) == 0){
+                cache = safe_cache(create_cache(stoll(extrainfo),NULL));
             }
             else{
-                return_error("cache already created!");//todo: replace with valid HTTP message
+                udp_con.return_error("cache already created!");//todo: replace with valid HTTP message
             }
         }
         else{
@@ -150,13 +157,12 @@ void act_on_message(cache_connection & con, string message){
         throw runtime_error("bad message");
     }
 }
-void run_server(int portnum,int maxmem){
+void run_server(int tcp_port,int udp_port,int maxmem){
     asio::io_service my_io_service;
-    safe_cache cache(create_cache(maxmem,nullptr));
     tcp::acceptor acceptor(my_io_service, tcp::endpoint(tcp::v4(), portnum));
+    cache_connection con(my_io_service,acceptor,udp_port,tcp_port);
     while(true){
-        cache_connection con(my_io_service,acceptor,portnum);
-        con.act_on_message(cache,con.get_message());
+        act_on_message(con,con.get_message());
     }
 }
 /*
