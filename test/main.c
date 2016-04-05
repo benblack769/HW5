@@ -19,7 +19,7 @@
 }
 
 int main(int argn,char ** argv){
-#ifdef NDEBUG
+#ifndef NDEBUG
     uint64_t test_num = 0;
 
     if(get_val_test()){

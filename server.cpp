@@ -11,7 +11,6 @@
 #include "user_con.hpp"
 
 using namespace std;
-constexpr size_t bufsize = 1 << 18;
 
 class ExitException: public exception
 {
@@ -37,7 +36,7 @@ int main(int argc, char ** argv){
         }
     }
     try{
-        run_server(portnum,8000,maxmem);
+        run_server(portnum,9202,maxmem);
     }
     catch(ExitException & except){
         //this is normal, do nothing
@@ -50,7 +49,7 @@ int main(int argc, char ** argv){
     return 0;
 }
 string make_json(string key,string value){
-    return "{ \"key\": \"" + key + "\" , \"value\": \"" + value + "\" } ";
+    return "{ \"key\": \"" + key + "\" , \"value\": \"" + value + "\" } \n";
 }
 class safe_cache{
 public:
@@ -76,7 +75,7 @@ void get(con_ty & con,string key){
     val_type v = cache_get(con.cache(),(char *)(key.c_str()),&val_size);
     if(v != nullptr){
         string output = make_json(key,string((char *)(v)));
-        con.write_message((char *)(output.c_str()),output.size());
+        con.write_message(output);
     }else{
         con.return_error("got item not in cache");
     }
@@ -87,7 +86,7 @@ void put(con_ty & con,string key,string value){
 }
 template<typename con_ty>
 void delete_(con_ty & con,string key){
-    cache_delete(con.cache(),key.c_str());
+    cache_delete(con.cache(),(key_type)(key.c_str()));
 }
 template<typename con_ty>
 void head(con_ty & con){
@@ -100,7 +99,8 @@ void post(con_ty & con,string post_type,string extrainfo){
     }
     else if(post_type == "memsize"){
         if(cache_space_used(con.cache()) == 0){
-            *con.port_cache = safe_cache(create_cache(stoll(extrainfo),NULL));
+            destroy_cache(con.cache());
+            con.cache() = create_cache(stoll(extrainfo),NULL);
         }
         else{
             con.return_error("cache already created!");//todo: replace with valid HTTP message
@@ -165,12 +165,12 @@ public:
                          boost::bind(&tcp_con::handle_read,shared_from_this(),asio::placeholders::error(),asio::placeholders::bytes_transferred()));
 
   }
-  void write_message(void * buf,size_t len){
-      asio::async_write(socket_, asio::buffer(buf,len),
+  void write_message(string s){
+      asio::async_write(socket_, asio::buffer(s),
                         boost::bind(&tcp_con::handle_write, shared_from_this()));
   }
   void return_error(std::string myerr){
-      write_message(myerr.c_str(),myerr.size());
+      write_message(myerr);
   }
   cache_t & cache(){
       return port_cache->impl;
@@ -232,17 +232,22 @@ private:
 class udp_server
 {
 public:
-  udp_server(asio::io_service& io_service)
-    : socket_(io_service, udp::endpoint(udp::v4(), 13))
+  udp_server(asio::io_service& io_service,int udp_port,safe_cache & incache)
+    : socket_(io_service, udp::endpoint(udp::v4(), udp_port)),
+      port_cache(&incache)
   {
     start_receive();
   }
-  void write_message(void * buf,size_t len){
-        socket_.async_send(asio::buffer(buf,len),
-                        boost::bind(&tcp_con::handle_write,this));
+  void write_message(string s){
+      vector<bufarr> bufvec;
+      make_buf_vec(bufvec,s);
+      for(bufarr & arr : bufvec){
+        socket_.async_send(asio::buffer(arr),
+                    boost::bind(&udp_server::handle_send,this));
+      }
   }
   void return_error(std::string myerr){
-      write_message(myerr.c_str(),myerr.size());
+      write_message(myerr);
   }
   cache_t & cache(){
       return port_cache->impl;
@@ -250,34 +255,50 @@ public:
 
   void start_receive()
   {
-    boost::shared_ptr<asio::streambuf> sb (new asio::streambuf());
-    socket_.receive_from(
-        sb, remote_endpoint_,
-        boost::bind(&udp_server::handle_receive, this,sb,
-          asio::placeholders::error));
+      bufvec.clear();
+      receive_more();
   }
-
-  void handle_receive(boost::shared_ptr<asio::streambuf> sb,const asio::error_code& error)
+  void receive_more(){
+      bufvec.emplace_back();
+      socket_.async_receive(asio::buffer(bufvec.back()),
+                          boost::bind(&udp_server::handle_receive, this,
+                          asio::placeholders::error,asio::placeholders::bytes_transferred()));
+  }
+  void handle_receive(const asio::error_code& error,size_t bytes_written)
   {
     if (!error){
-        act_on_message(*this,to_string(*sb));
-        start_receive();
+        bufarr & buf = bufvec.back();
+
+        if(find(buf,'\n') != string::npos){
+            string message;
+            if(!make_str(bufvec,message,'\n')){
+                return;
+            }
+            act_on_message(*this,message);
+        }
+        else{
+            receive_more();
+        }
     }
   }
-
-  void handle_send(boost::shared_ptr<std::string>)
+  void handle_send()
   {
   }
   udp::socket socket_;
   safe_cache * port_cache;//non-owning
   udp::endpoint remote_endpoint_;
+  std::vector<bufarr> bufvec;
 };
 
 void run_server(int tcp_port,int udp_port,int maxmem){
     asio::io_service my_io_service;
     safe_cache serv_cache(create_cache(maxmem,nullptr));
-    tcp_server con(my_io_service,tcp_port,serv_cache);
-    con.start_accept();
+
+    tcp_server tcon(my_io_service,tcp_port,serv_cache);
+    udp_server ucon(my_io_service,udp_port,serv_cache);
+
+    tcon.start_accept();
+    ucon.start_receive();
 
     my_io_service.run();
 }
