@@ -7,17 +7,9 @@ bool cache_space_preserved(){
     // items of items in the cache is the size of all of the non-NULL elements
     const uint64_t maxmem = 200;
     cache_t c = create_cache_wrapper(maxmem,NULL);
-    printf("hihihi\n");
-    fflush(stdout);
     add_elements(c,0,5,STR);
-    printf("hihihi\n");
-    fflush(stdout);
     delete_element(c,4);
-        printf("hihihi\n");
-    fflush(stdout);
     add_elements(c,0,2,INT);
-        printf("hihihi\n");
-    fflush(stdout);
     bool worked = cache_space_used(c) == space_of_elements(c,0,2,INT) + space_of_elements(c,2,5,STR);
     destroy_cache(c);
     return worked;
@@ -81,12 +73,12 @@ bool add_same_starting_char(){
     // adds vals under different keys that start with the same character.
     // if the cache doesn't copy keys by string then this will fail.
     cache_t c = create_cache_wrapper(10000,NULL);
-    char k[1000];
-    int v = 12345;
+    char k[1000] = {0};
+    char * v = "12345";
     int size;
     for(int i=0;i<100;++i){
         strcat(k,"i");
-        cache_set(c,k,&v,sizeof(int));
+        cache_set(c,k,v,sizeof(int));
         size = cache_space_used(c);
         if (size!=((i+1)*sizeof(int))){
             destroy_cache(c);

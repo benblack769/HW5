@@ -6,9 +6,13 @@
 int_ty * ivals;
 char ** svals;
 
-char keyarr[22] = {0};
+#define maxintlen 22
+char keyarr[maxintlen] = {0};
 
 void load_key_to_intarr(uint64_t num){
+    for(size_t i = 0; i < maxintlen; i++){
+        keyarr[i] = 0;
+    }
 	sprintf(keyarr, PRIu64, num);
 }
 char rand_char(){
@@ -127,7 +131,6 @@ bool element_exists(cache_t cache,uint64_t elmt){
 	load_key_to_intarr(elmt);
 	uint32_t null_size = 0;
 	val_type val = cache_get_wrapper(cache,keyarr,&null_size);
-	bool exists = val != NULL;
 	return val != NULL;
 }
 bool elements_exist(cache_t cache,uint64_t start_elmt,uint64_t end_elmt){

@@ -10,6 +10,7 @@ using namespace asio;
 using namespace asio::ip;
 
 constexpr size_t bufsize = 1 << 15;
+const std::string errstr = "ERROR";
 
 class tcp_connection{
 public:

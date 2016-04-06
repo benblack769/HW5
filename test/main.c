@@ -20,14 +20,7 @@
 
 int main(int argn,char ** argv){
 #ifndef NDEBUG
-    uint64_t test_num = 0;
-
-    if(get_val_test()){
-        printf("worked");
-    }
-    else{
-        printf("failed");
-    }
+    uint64_t test_num = 20;
 #else
     if(argn != 2){
         printf("needs one argument\n");
@@ -36,8 +29,8 @@ int main(int argn,char ** argv){
 	char * num_str = argv[1];
     uint64_t test_num = strtoumax(num_str,NULL,10);
 
-	gen_vals();
 #endif
+    gen_vals();
 
 	switch (test_num) {
 	// 0 - 8: naive and basic crash tests
