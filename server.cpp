@@ -84,10 +84,8 @@ void get(con_ty & con,string key){
     if(v != nullptr){
         string output = make_json(key,string((char *)(v)));
         con.write_message(output);
-        cout << "returned non-null" << endl;
     }else{
         con.return_error();
-        cout << "returned null" << endl;
     }
 }
 template<typename con_ty>

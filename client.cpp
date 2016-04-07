@@ -82,7 +82,6 @@ val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
 
     if(retval == errstr){
         *val_size = 0;
-        cout << "ptr is null\n\n" << endl;
         return nullptr;
     }
     else{
