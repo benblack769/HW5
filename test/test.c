@@ -76,10 +76,10 @@ bool get_huge_value(){
     cache_t c = create_cache_wrapper(valsize,NULL);
     char * str = calloc(valsize,1);
     char * key = "mykey";
-    for(int i = 0; i < valsize-1; i++){
+    for(int i = 0; i < valsize-5; i++){
         str[i] = rand()%26+96;//random lower case letters
     }
-    cache_set(c,key,str,valsize);
+    cache_set(c,key,str,strlen(str)+1);
     uint32_t num = 0;
     void * val = cache_get(c,key,&num);
     bool worked = strcmp(val,str) == 0;

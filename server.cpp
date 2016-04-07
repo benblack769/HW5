@@ -94,7 +94,6 @@ void put(con_ty & con,string key,string value){
 }
 template<typename con_ty>
 void delete_(con_ty & con,string key){
-    cout << "val deleted" << endl;
     cache_delete(con.cache(),(key_type)(key.c_str()));
 }
 template<typename con_ty>

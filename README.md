@@ -4,18 +4,16 @@ Files | descriptions
 --- | ---
 telnet.sh | allows basic testing of server without client
 client.cpp | client code
+make.sh | bash build script
+run_test.py | testing suite script
+user_con.hpp | shared code between client and server
 
-
-
-### Experience with ASIO
-
-Any library which uses a core concept that has an explicitly listed disadvantage of increased code complexity should be approached with caution (ASIO Documentation/Overview/Proactor design pattern/disadvantages). Some tasks which would have been trivial with raw sockets were painful without them. Notably, calling the underlying setsockopt required setting up an object with 4 functions which returned the arguments for setsockopt, instead of just calling a function.
 
 ### Correctness status
 
 All of the tests pass except those that use unimplemented features, the testing helper framework I made that seems to have a bug or two, or assume that values can hold arbitrary data. Except "delete_not_in", which sometimes works and most of the time fails (even when working on localhost), so I don't know what is wrong with it.
 
-To ensure that working with huge values (megabytes) actually worked, I made a new test (number 12 get_huge_value), which sets and gets a single enormous value, and checks to see if it is correct.
+To ensure that working with huge values (megabytes) actually worked, I made a new test (number 12 get_huge_value), which sets and gets a single enormous value, and checks to see if it is correct. It currently fails.
 
 ### Memory leak status
 
@@ -23,4 +21,16 @@ There is one problem with the API that seems to require memory leaks. This is th
 
 There is one solution to this problem I can think of. Whenever cache_get is called, it stores a single value in somewhere, and returns the pointer to that. Then, when cache_get is called on a different key, it deletes the previous value from this spot and puts the new one in. So it is basically a client side cache that stores a single value. The only problem is that this means that any call to cache_get invalidates returned pointers, which was not assumed in many of the tests.  
 
+I have not implemented it yet.
+
+### Network interface conformance status
+
+Currently it used badly non-standard messages (especially for error codes). It assumes that all messages are a single line long. Also, the UDP interface uses a packet system I made with a binary integer stuck on the front of the buffer, which is blatantly non-conforming to anything. Unfortunately, I ran out of time to make it more standard, and more able to communicate with other people's servers.
+
 ### Performance status
+
+There are an absurd number of data copies made between cache_get being called and the data being returned. This not ideal, but it leaves lots of room for improvement.
+
+### Experience with ASIO
+
+Any library which uses a core concept that has an explicitly listed disadvantage of increased code complexity should be approached with caution (ASIO Documentation/Overview/Proactor design pattern/disadvantages). Some tasks which would have been trivial with raw sockets were painful without them. Notably, calling the underlying setsockopt required setting up an object with 4 functions which returned the arguments for setsockopt, instead of just calling a function.
