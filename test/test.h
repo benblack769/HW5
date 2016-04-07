@@ -10,7 +10,7 @@ bool create_init_correct_mem();
 
 bool add_single_item_over_memmax();
 bool large_val_copied_correctly();
-bool add_same_starting_char();
+bool get_huge_value();
 bool add_over_memmax_eviction();
 bool add_resize_buckets_or_maxmem();
 

@@ -23,22 +23,29 @@ void run_server(int tcp_port, int udp_port, int maxmem);
 int main(int argc, char ** argv){
     //take mainly off the get_opt wikipedia page
     int c;
-    int portnum = 9201;
+    int tcp_portnum = 9201;
+    int udp_portnum = 9202;
     int maxmem = 1 << 16;
-    while ( (c = getopt(argc, argv, "m:p:")) != -1) {
+    while ( (c = getopt(argc, argv, "m:p:u:")) != -1) {
         switch (c) {
         case 'm':
             maxmem = atoi(optarg);
             break;
         case 'p':
-            portnum = atoi(optarg);
+            tcp_portnum = atoi(optarg);
             break;
+        case 'u':
+            udp_portnum = atoi(optarg);
+            break;
+        default:
+            cout << "bad command line argument";
+            return 1;
         }
     }
     try{
-        run_server(portnum,9204,maxmem);
+        run_server(tcp_portnum,udp_portnum,maxmem);
     }
-    catch(ExitException & except){
+    catch(ExitException &){
         //this is normal, do nothing
     }
     catch(exception & unexpected_except){
@@ -73,12 +80,14 @@ public:
 template<typename con_ty>
 void get(con_ty & con,string key){
     uint32_t val_size = 0;
-    val_type v = cache_get(con.cache(),(char *)(key.c_str()),&val_size);
+    val_type v = cache_get(con.cache(),(key_type)(key.c_str()),&val_size);
     if(v != nullptr){
         string output = make_json(key,string((char *)(v)));
         con.write_message(output);
+        cout << "returned non-null" << endl;
     }else{
         con.return_error();
+        cout << "returned null" << endl;
     }
 }
 template<typename con_ty>
@@ -87,6 +96,7 @@ void put(con_ty & con,string key,string value){
 }
 template<typename con_ty>
 void delete_(con_ty & con,string key){
+    cout << "val deleted" << endl;
     cache_delete(con.cache(),(key_type)(key.c_str()));
 }
 template<typename con_ty>
@@ -257,43 +267,38 @@ public:
 
   void start_receive()
   {
-      bufvec.clear();
-      receive_more();
-  }
-  void receive_more(){
-      bufvec.emplace_back();
-      socket_.async_receive_from(asio::buffer(bufvec.back()),endpoint,
+      socket_.async_receive_from(asio::buffer(buf),endpoint,
                           boost::bind(&udp_server::handle_receive, this,
                           asio::placeholders::error,asio::placeholders::bytes_transferred()));
   }
   void handle_receive(const asio::error_code& error,size_t bytes_written)
   {
     if (!error){
-        bufarr & buf = bufvec.back();
-
-        if(find(buf,'\n') != string::npos){
-            string message;
-            if(!make_str(bufvec,message,'\n')){
-                return;
-            }
-            act_on_message(*this,message);
-            start_receive();
+        //can be made more optimal with a special case for get_packet_num(buf) == 0
+        if(get_packet_num(buf) != packet_count){
+            packet_count = 0;
+            recv_data.clear();
+        }
+        else if(add_to_str_finished(buf,recv_data,'\n')){
+            packet_count = 0;
+            act_on_message(*this,recv_data);
+            recv_data.clear();
         }
         else{
-            receive_more();
+            packet_count += 1;
         }
     }
-    else{
-        start_receive();
-    }
+    start_receive();
   }
-  void handle_send(const asio::error_code& error,size_t bytes_written)
+  void handle_send(const asio::error_code& ,size_t )
   {
   }
   udp::socket socket_;
   udp::endpoint endpoint;
   safe_cache * port_cache;//non-owning
-  std::vector<bufarr> bufvec;
+  string recv_data;
+  bufarr buf;
+  uint32_t packet_count = 0;
 };
 
 void run_server(int tcp_port,int udp_port,int maxmem){

@@ -47,7 +47,7 @@ public:
         }
     }
     void return_error(std::string myerr){
-        write_message(myerr.c_str(),myerr.size());
+        write_message((char*)(myerr.c_str()),myerr.size());
     }
 };
 
@@ -56,6 +56,16 @@ public:
 //void handle_receive(const asio::error_code& ec, std::size_t length,
 //                    udp_connection * con);
 using bufarr = std::array<char,bufsize>;
+
+size_t find_in_buf(bufarr & buf,size_t startpos,char c){
+    for(size_t pos = startpos; pos < bufsize; pos++){
+        if(buf[pos] == c){
+            return pos;
+        }
+    }
+    return std::string::npos;
+}
+
 void make_buf_vec(std::vector<bufarr> & outbuf,std::string & buffstr){
     outbuf.clear();
     uint32_t count = 0;
@@ -69,34 +79,43 @@ void make_buf_vec(std::vector<bufarr> & outbuf,std::string & buffstr){
         str_buf_idx += av_size;
     }while(str_buf_idx < buffstr.size());
 }
-bool make_str(std::vector<bufarr> & inbuf,std::string & out_buffstr,char delim){
-    out_buffstr.clear();
-    uint32_t count = 0;
-    for(bufarr & buf : inbuf){
-        uint32_t this_count = *reinterpret_cast<uint32_t*>(buf.data());
-        if(this_count != count){
-            return false;
-        }
-        for(size_t pos = sizeof(uint32_t); pos < buf.size();pos++){
-            if(buf[pos] == delim){
-                out_buffstr.insert(out_buffstr.end(),buf.begin()+sizeof(uint32_t),buf.begin()+pos);
-                return true;
-            }
-        }
-        out_buffstr.insert(out_buffstr.end(),buf.begin(),buf.end());
-        count++;
-    }
-    return false;//didn't find delimiter
-}
-size_t find(bufarr & buf,char c){
-    for(size_t pos = sizeof(uint32_t); pos < bufsize; pos++){
-        if(buf[pos] == c){
-            return pos;
-        }
-    }
-    return std::string::npos;
+uint32_t get_packet_num(bufarr & buf){
+    return *reinterpret_cast<uint32_t*>(buf.data());
 }
 
+bool add_to_str_finished(bufarr & buf,std::string & out_str,char delim){
+    const size_t pk_size = sizeof(uint32_t);
+    size_t loc = find_in_buf(buf,pk_size,delim);
+    if(loc == std::string::npos){
+        out_str.insert(out_str.end(),buf.begin()+pk_size,buf.end());
+        return false;
+    }
+    else{
+        out_str.insert(out_str.end(),buf.begin()+pk_size,buf.begin()+loc);
+        return true;
+    }
+}
+class sock_opt_h{
+public:
+    timeval time;
+    sock_opt_h(){
+        time.tv_sec = 0;
+        time.tv_usec = 50 * 1000;
+    }
+    int level(const udp &) const{
+        return SOL_SOCKET;
+    }
+    int name(const udp &)const{
+        return SO_RCVTIMEO;
+    }
+    void * data(const udp &)const{
+        return (void*)(&time);
+    }
+    //const timeval &
+    size_t size(const udp &)const{
+        return sizeof(time);
+    }
+};
 class udp_connection{
 public:
     udp::socket socket;
@@ -115,29 +134,34 @@ public:
     }*/
 
     udp_connection(asio::io_service & service):
-        socket(service){}
+        socket(service){
+    }
 
+    void set_block_timeout(){
+        sock_opt_h def;
+        socket.set_option(def);
+    }
 
     std::string get_message(){
-        std::vector<bufarr> bufvec;
+        uint32_t packet_count = 0;
+        std::string recv_data;
         while(true){
-
-            asio::error_code err;
-            bufvec.emplace_back();
-            bufarr & buf = bufvec.back();
+            bufarr buf;
             size_t length = socket.receive(asio::buffer(buf));
 
-            for(size_t pos = sizeof(uint32_t);pos < length; pos++){
-                if(buf[pos] == '\n'){
-                    std::string message;
-                    if(make_str(bufvec,message,'\n'))
-                        return message;
-                    else
-                        return "";
-                }
+            if(get_packet_num(buf) != packet_count){
+                return errstr;
+            }
+            else if(add_to_str_finished(buf,recv_data,'\n')){
+                return recv_data;
+            }
+            else{
+                packet_count += 1;
             }
         }
     }
+
+
     void write_message(std::string s){
         std::vector<bufarr> bufvec;
         make_buf_vec(bufvec,s);

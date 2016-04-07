@@ -69,22 +69,21 @@ bool large_val_copied_correctly(){
     return worked;
 }
 
-bool add_same_starting_char(){
+bool get_huge_value(){
     // adds vals under different keys that start with the same character.
     // if the cache doesn't copy keys by string then this will fail.
-    cache_t c = create_cache_wrapper(10000,NULL);
-    char k[1000] = {0};
-    char * v = "12345";
-    int size;
-    for(int i=0;i<100;++i){
-        strcat(k,"i");
-        cache_set(c,k,v,sizeof(int));
-        size = cache_space_used(c);
-        if (size!=((i+1)*sizeof(int))){
-            destroy_cache(c);
-            return false;
-        }
+    const size_t valsize = 10000000;
+    cache_t c = create_cache_wrapper(valsize,NULL);
+    char * str = calloc(valsize,1);
+    char * key = "mykey";
+    for(int i = 0; i < valsize-1; i++){
+        str[i] = rand()%26+96;//random lower case letters
     }
+    cache_set(c,key,str,valsize);
+    uint32_t num = 0;
+    void * val = cache_get(c,key,&num);
+    bool worked = strcmp(val,str) == 0;
+    free(str);
     destroy_cache(c);
     return true;
 }

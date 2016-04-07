@@ -73,7 +73,7 @@ int main(int argn,char ** argv){
 		RunTest(large_val_copied_correctly); // jhepworth (crash)
 		break;
    	case 12:
-   		RunTest(add_same_starting_char);
+        RunTest(get_huge_value);
    		break;
     case 13:
     	RunTest(add_over_memmax_eviction); // only pass or crash

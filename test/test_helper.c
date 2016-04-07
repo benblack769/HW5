@@ -93,7 +93,7 @@ bool check_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt,val_entr
 	return res;
 }
 void delete_element(cache_t cache,uint64_t elmt){
-	uint64_t curkey = to_key_int(elmt);
+    load_key_to_intarr(elmt);
 	cache_delete(cache,keyarr);
 }
 void delete_elements(cache_t cache,uint64_t start_elmt,uint64_t end_elmt){
