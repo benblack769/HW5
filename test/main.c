@@ -1,5 +1,6 @@
 #include <string.h>
 #include <inttypes.h>
+#include <time.h>
 #include "cachewrapper.h"
 #include "test_helper.h"
 #include "test.h"
@@ -18,7 +19,31 @@
         exit(failed_code);\
 }
 
+uint64_t get_time_ns(){
+	struct timespec t;
+	clock_gettime(0,&t);
+ 	return 1000000000ULL * t.tv_sec + t.tv_nsec;
+}
+
 int main(int argn,char ** argv){
+#ifdef TIME_GETS
+    cache_t c = create_cache(100000,NULL);
+    char * val = "this is a reasonably long value bufffffffffffffffffffffffffffffffffffffffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrrrrrrrrrrbufffffffffffffffffffffffffffffffffffffffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrrrrrrrrrrbufffffffffffffffffffffffffffffffffffffffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrrrrrrrrrrbufffffffffffffffffffffffffffffffffffffffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrrrrrrrrrrbufffffffffffffffffffffffffffffffffffffffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrrrrrrrrrrrr";
+    char * key = "this is a reasonable key";
+    cache_set(c,key,val,strlen(val)+1);
+    uint64_t start = get_time_ns();
+    uint32_t nulval = 0;
+    for(int i = 0; i < 1000; i++){
+        val_type v = cache_get(c,key,&nulval);
+        if(v == NULL){
+            printf("get failed\n");
+        }
+    }
+    double time_passed = (get_time_ns() - start) / 1000000000.0;
+    printf("time taken = %f\n",time_passed);
+    destroy_cache(c);
+    return 0;
+#endif
 #ifndef NDEBUG
     uint64_t test_num = 20;
 #else
