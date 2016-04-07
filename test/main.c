@@ -33,7 +33,7 @@ int main(int argn,char ** argv){
     cache_set(c,key,val,strlen(val)+1);
     uint64_t start = get_time_ns();
     uint32_t nulval = 0;
-    for(int i = 0; i < 1000; i++){
+    for(int i = 0; i < 100; i++){
         val_type v = cache_get(c,key,&nulval);
         if(v == NULL){
             printf("get failed\n");
@@ -44,8 +44,8 @@ int main(int argn,char ** argv){
     destroy_cache(c);
     return 0;
 #endif
-#ifndef NDEBUG
-    uint64_t test_num = 20;
+#ifdef DEBUG
+    uint64_t test_num = 12;
 #else
     if(argn != 2){
         printf("needs one argument\n");

@@ -21,26 +21,116 @@ string tcp_port = "9201";
 string udp_port = "9202";
 string serv_name = "localhost";
 
-class client_udp_connection:
-    public udp_connection{
+class tcp_connection{
 public:
-    client_udp_connection(asio::io_service & service,udp::endpoint & reciver):
-        udp_connection(service)
-    {
-        socket.connect(reciver);
-        set_block_timeout();
-    }
-};
-class client_tcp_connection:
-    public tcp_connection{
-public:
-    client_tcp_connection(asio::io_service & service,ip::tcp::resolver::iterator & resit):
-        tcp_connection(service)
-    {
+    tcp::socket socket;
+    tcp_connection(asio::io_service & service,ip::tcp::resolver::iterator & resit):
+        socket(service){
+
         asio::connect(socket, resit);
+    }
+
+    std::string get_message(){
+        const uint64_t max_length = 1 << 16;
+        std::string message;
+        while(true){
+            char buffer[max_length];
+            usleep(10);
+            asio::error_code error;
+            size_t length = socket.read_some(asio::buffer(buffer,max_length), error);
+            if (error == asio::error::eof)
+                break; // Connection closed cleanly by peer.
+            else if (error)
+                throw asio::system_error(error); // Some other error.
+
+            message.insert(message.end(),buffer,buffer+length);
+
+            if(message.find('\n') != std::string::npos){
+                break;
+            }
+        }
+        return message;
+    }
+    void write_message(void * buf,size_t len){
+        asio::error_code error;
+        asio::write(socket, asio::buffer(buf,len), error);
+        if (error){
+            throw asio::system_error(error);
+        }
+    }
+    void return_error(std::string myerr){
+        write_message((char*)(myerr.c_str()),myerr.size());
     }
 };
 
+class sock_opt_h{
+public:
+    timeval time;
+    sock_opt_h(){
+        time.tv_sec = 0;
+        time.tv_usec = 50 * 1000;
+    }
+    int level(const udp &) const{
+        return SOL_SOCKET;
+    }
+    int name(const udp &)const{
+        return SO_RCVTIMEO;
+    }
+    void * data(const udp &)const{
+        return (void*)(&time);
+    }
+    //const timeval &
+    size_t size(const udp &)const{
+        return sizeof(time);
+    }
+};
+class udp_connection{
+public:
+    udp::socket socket;
+
+    udp_connection(asio::io_service & service,udp::endpoint & reciver):
+        socket(service){
+
+        socket.connect(reciver);
+        set_block_timeout();
+    }
+
+    void set_block_timeout(){
+        sock_opt_h def;
+        socket.set_option(def);
+    }
+
+    std::string get_message(){
+        uint32_t packet_count = 0;
+        std::string recv_data;
+        while(true){
+            bufarr buf;
+            size_t length = socket.receive(asio::buffer(buf));
+
+            if(get_packet_num(buf) != packet_count){
+                return errstr;
+            }
+            else if(add_to_str_finished(buf,recv_data,'\n')){
+                return recv_data;
+            }
+            else{
+                packet_count += 1;
+            }
+        }
+    }
+
+
+    void write_message(std::string s){
+        std::vector<bufarr> bufvec;
+        make_buf_vec(bufvec,s);
+        for(bufarr & buf : bufvec){
+            socket.send(asio::buffer(buf));
+        }
+    }
+    void return_error(std::string myerr){
+        write_message(myerr);
+    }
+};
 struct cache_obj{
     ip::tcp::resolver::iterator resit;
     udp::endpoint reciver;
@@ -49,13 +139,13 @@ struct cache_obj{
         reciver = *udp_resolver.resolve({serv_name, udp_port});
     }
     string send_message_tcp(bool getmes,string head,string word1,string word2=string()){
-        client_tcp_connection con(my_io_service,resit);
+        tcp_connection con(my_io_service,resit);
         string finstr = head + " /" + word1 + (word2.size() == 0 ? "" : "/" + word2) + "\n";
         con.write_message((void*)(finstr.data()),finstr.size());
         return getmes ? con.get_message() : string();
     }
     string send_message_udp(bool getmes,string head,string word1,string word2=string()){
-        client_udp_connection con(my_io_service,reciver);
+        udp_connection con(my_io_service,reciver);
         string finstr = head + " /" + word1 + (word2.size() == 0 ? "" : "/" + word2) + "\n";
         con.write_message(finstr);
         return getmes ? con.get_message() : string();

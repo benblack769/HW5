@@ -236,8 +236,8 @@ private:
     start_accept();
   }
 
-  safe_cache * port_cache;//non-owning
   tcp::acceptor acceptor_;
+  safe_cache * port_cache;//non-owning
 };
 class udp_server
 {

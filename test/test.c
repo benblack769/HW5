@@ -85,7 +85,7 @@ bool get_huge_value(){
     bool worked = strcmp(val,str) == 0;
     free(str);
     destroy_cache(c);
-    return true;
+    return worked;
 }
 
 
