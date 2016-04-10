@@ -8,6 +8,11 @@ make.sh | bash build script
 run_test.py | testing suite script
 user_con.hpp | shared code between client and server
 
+### Build
+
+Needs boost installed. On ubuntu this can be installed by
+
+sudo apt-get install libboost-all-dev
 
 ### Correctness status
 
