@@ -163,6 +163,9 @@ cache_t create_cache(uint64_t maxmem,hash_func h_fn){
     return outc;
 }
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
+    if(val_size > bufsize){
+        return;
+    }
     char * val_str = (char *)(val);//val is assumed to be a string
     cache->send_message_tcp(false,"PUT",(char*)(key),string(val_str,val_str + val_size));
 }
