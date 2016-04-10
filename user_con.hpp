@@ -18,8 +18,8 @@ const std::string errstr = "ERROR";
 //                    udp_connection * con);
 using bufarr = std::array<char,bufsize>;
 
-size_t find_in_buf(bufarr & buf,size_t startpos,char c){
-    for(size_t pos = startpos; pos < bufsize; pos++){
+size_t find_in_buf(bufarr & buf,char c){
+    for(size_t pos = 0; pos < bufsize; pos++){
         if(buf[pos] == c){
             return pos;
         }

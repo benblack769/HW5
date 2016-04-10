@@ -31,13 +31,12 @@ public:
     }
 
     std::string get_message(){
-        const uint64_t max_length = 1 << 16;
         std::string message;
         while(true){
-            char buffer[max_length];
+            char buffer[bufsize];
             usleep(10);
             asio::error_code error;
-            size_t length = socket.read_some(asio::buffer(buffer,max_length), error);
+            size_t length = socket.read_some(asio::buffer(buffer,bufsize), error);
             if (error == asio::error::eof)
                 break; // Connection closed cleanly by peer.
             else if (error)
@@ -103,23 +102,18 @@ public:
     std::string get_message(){
         uint32_t packet_count = 0;
         std::string recv_data;
-        while(true){
-            bufarr buf;
-            size_t length = socket.receive(asio::buffer(buf));
 
-            if(get_packet_num(buf) != packet_count){
-                return errstr;
-            }
-            else if(add_to_str_finished(buf,recv_data,'\n')){
-                return recv_data;
-            }
-            else{
-                packet_count += 1;
-            }
+        bufarr buf;
+        size_t length = socket.receive(asio::buffer(buf));
+
+        size_t loc = find_in_buf(buf,char(0));
+        if(loc == string::npos){
+            return "error";//make a valid error code
+        }
+        else{
+            return string(buf.begin(),buf.begin()+loc);
         }
     }
-
-
     void write_message(std::string s){
         std::vector<bufarr> bufvec;
         make_buf_vec(bufvec,s);
