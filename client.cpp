@@ -94,22 +94,22 @@ public:
         size_t length = socket.receive(asio::buffer(buf));
 
         size_t loc = find_in_buf(buf,char(0));
-        if(length != bufsize || loc == string::npos){
-            return "error";//todo: make a valid error code
+        if(loc == string::npos){
+            return errstr;//todo: make a valid error code
         }
         else{
             return string(buf.begin(),buf.begin()+loc);
         }
     }
     void write_message(std::string s){
-        bufarr buf;
+        /*bufarr buf;
         if(s.length() > bufsize-1){
             throw runtime_error("bad message is passed to udp_connection");
         }
         std::copy(s.begin(),s.end(),buf.begin());
-        buf[s.length()] = 0;
+        buf[s.length()] = 0;*/
 
-        socket.send(asio::buffer(buf));
+        socket.send(asio::buffer(s.c_str(),s.size()+1));
     }
     void return_error(std::string myerr){
         write_message(myerr);

@@ -251,7 +251,7 @@ public:
   }
   void write_message(string s){
       s.reserve(bufsize);
-        socket_.async_send_to(asio::buffer(s.data(),bufsize),endpoint,
+        socket_.async_send_to(asio::buffer(s.c_str(),s.size()+1),endpoint,
                    boost::bind(&udp_server::handle_send,this,asio::placeholders::error(),asio::placeholders::bytes_transferred()));
   }
   void return_error(){
