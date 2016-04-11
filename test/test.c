@@ -72,7 +72,7 @@ bool large_val_copied_correctly(){
 bool get_huge_value(){
     // adds vals under different keys that start with the same character.
     // if the cache doesn't copy keys by string then this will fail.
-    const size_t valsize = 10000000;
+    const size_t valsize = 50000;
     cache_t c = create_cache_wrapper(valsize,NULL);
     char * str = calloc(valsize,1);
     char * key = "mykey";
@@ -82,7 +82,7 @@ bool get_huge_value(){
     cache_set(c,key,str,strlen(str)+1);
     uint32_t num = 0;
     void * val = cache_get(c,key,&num);
-    bool worked = strcmp(val,str) == 0;
+    bool worked = val != NULL && strcmp(val,str) == 0;
     free(str);
     destroy_cache(c);
     return worked;
@@ -261,7 +261,7 @@ bool delete_affect_get_out(){
     // by updates. This tests whether we have the same problem on the outputs
     // of cache_get after deletes.
     cache_t c = create_cache_wrapper(1000,NULL);
-    char * k = "key";
+    char * k = "this is my cool key";
     char *v1 = "stringval1";
     int size1,size2;
     cache_set(c,k,v1,strlen(v1)+1);

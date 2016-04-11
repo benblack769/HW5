@@ -31,34 +31,26 @@ public:
     }
 
     std::string get_message(){
-        std::string message;
-        while(true){
-            char buffer[bufsize];
-            usleep(10);
-            asio::error_code error;
-            size_t length = socket.read_some(asio::buffer(buffer,bufsize), error);
-            if (error == asio::error::eof)
-                break; // Connection closed cleanly by peer.
-            else if (error)
-                throw asio::system_error(error); // Some other error.
-
-            message.insert(message.end(),buffer,buffer+length);
-
-            if(message.find('\n') != std::string::npos){
-                break;
-            }
-        }
-        return message;
-    }
-    void write_message(void * buf,size_t len){
+        bufarr buffer;
         asio::error_code error;
-        asio::write(socket, asio::buffer(buf,len), error);
-        if (error){
-            throw asio::system_error(error);
+        size_t length = socket.read_some(asio::buffer(buffer), error);
+
+        if (error != asio::error::eof && error)
+            throw asio::system_error(error); // Some other error.
+
+        if(length == bufsize){
+            //todo: output some sort of error
+            return "";
         }
+
+        return string(buffer.begin(),buffer.begin()+length);
+    }
+    void write_message(string st){
+        st.push_back(char(0));
+        asio::write(socket, asio::buffer(st));
     }
     void return_error(std::string myerr){
-        write_message((char*)(myerr.c_str()),myerr.size());
+        write_message(myerr);
     }
 };
 
@@ -93,33 +85,31 @@ public:
         socket.connect(reciver);
         set_block_timeout();
     }
-
     void set_block_timeout(){
         sock_opt_h def;
         socket.set_option(def);
     }
-
     std::string get_message(){
-        uint32_t packet_count = 0;
-        std::string recv_data;
-
         bufarr buf;
         size_t length = socket.receive(asio::buffer(buf));
 
         size_t loc = find_in_buf(buf,char(0));
-        if(loc == string::npos){
-            return "error";//make a valid error code
+        if(length != bufsize || loc == string::npos){
+            return "error";//todo: make a valid error code
         }
         else{
             return string(buf.begin(),buf.begin()+loc);
         }
     }
     void write_message(std::string s){
-        std::vector<bufarr> bufvec;
-        make_buf_vec(bufvec,s);
-        for(bufarr & buf : bufvec){
-            socket.send(asio::buffer(buf));
+        bufarr buf;
+        if(s.length() > bufsize-1){
+            throw runtime_error("bad message is passed to udp_connection");
         }
+        std::copy(s.begin(),s.end(),buf.begin());
+        buf[s.length()] = 0;
+
+        socket.send(asio::buffer(buf));
     }
     void return_error(std::string myerr){
         write_message(myerr);
@@ -134,13 +124,13 @@ struct cache_obj{
     }
     string send_message_tcp(bool getmes,string head,string word1,string word2=string()){
         tcp_connection con(my_io_service,resit);
-        string finstr = head + " /" + word1 + (word2.size() == 0 ? "" : "/" + word2) + "\n";
-        con.write_message((void*)(finstr.data()),finstr.size());
+        string finstr = head + " /" + word1 + (word2.size() == 0 ? "" : "/" + word2);
+        con.write_message(finstr);
         return getmes ? con.get_message() : string();
     }
     string send_message_udp(bool getmes,string head,string word1,string word2=string()){
         udp_connection con(my_io_service,reciver);
-        string finstr = head + " /" + word1 + (word2.size() == 0 ? "" : "/" + word2) + "\n";
+        string finstr = head + " /" + word1 + (word2.size() == 0 ? "" : "/" + word2);
         con.write_message(finstr);
         return getmes ? con.get_message() : string();
     }
@@ -151,7 +141,7 @@ void unpack_json(string json_str, string & key, string & value){
     value = j["value"];
 }
 
-cache_t create_cache(uint64_t maxmem,hash_func h_fn){
+cache_t create_cache(uint64_t maxmem,hash_func ){
     cache_t outc = new cache_obj();
     outc->send_message_tcp(false,"POST","memsize",to_string(maxmem));
     return outc;
@@ -164,23 +154,27 @@ void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
     cache->send_message_tcp(false,"PUT",(char*)(key),string(val_str,val_str + val_size));
 }
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
+    *val_size = 0;
+
     string keystr((char*)key);
     string retval = cache->send_message_udp(true,"GET",keystr);
 
     if(retval == errstr){
-        *val_size = 0;
         return nullptr;
     }
     else{
-        string valstr;
-        unpack_json(retval,keystr,valstr);
+        string valstr,retkeystr;
+        unpack_json(retval,retkeystr,valstr);
+
+        if(keystr != retkeystr){
+            return nullptr;
+        }
 
         *val_size = valstr.size();
-        //huge memory leak, but the only way I know how to do this correctly
-        string * s = new string(valstr);
-        string && str = std::move(valstr);
-        s->swap(str);
-        return s->data();
+
+        char * s = new char[valstr.size()+1];
+        strcpy(s,valstr.c_str());
+        return s;
     }
 }
 void cache_delete(cache_t cache, key_type key){
