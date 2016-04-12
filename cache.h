@@ -10,7 +10,7 @@ typedef const void *val_type;
 typedef uint64_t (*hash_func)(key_type key);
 extern "C"{
 // Create a new cache object with a given maximum memory capacity.
-cache_t create_cache(uint64_t maxmem,hash_func h_fn);
+cache_t create_cache(uint64_t maxmem, hash_func);
 
 
 // Add a <key, value> pair to the cache.

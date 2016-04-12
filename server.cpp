@@ -48,16 +48,16 @@ int main(int argc, char ** argv){
     catch(ExitException &){
         //this is normal, do nothing
     }
-    catch(exception & unexpected_except){
-        cout << unexpected_except.what();
-       return 1;
-    }
+    //catch(exception & unexpected_except){
+    //    cout << unexpected_except.what();
+    //   return 1;
+    //}
 
     return 0;
 }
 string make_json(string key,string value){
     key.pop_back();
-    return "{ \"key\": \"" + key + "\" , \"value\": \"" + value + "\" } \n";
+    return "{ \"key\": \"" + key + "\" , \"value\": \"" + value + "\" } ";
 }
 class safe_cache{
 public:
@@ -102,6 +102,7 @@ void head(con_ty &){
 }
 template<typename con_ty>
 void post(con_ty & con,string post_type,string extrainfo){
+    strip(post_type);
     if(post_type == "shutdown"){
         throw ExitException();
     }
@@ -170,7 +171,7 @@ public:
   }
 
   void start(){
-      asio::async_read_until(socket_,b,'\n',
+      asio::async_read_until(socket_,b,char(0),
                          boost::bind(&tcp_con::handle_read,shared_from_this(),asio::placeholders::error(),asio::placeholders::bytes_transferred()));
 
   }
@@ -192,7 +193,9 @@ public:
 
   void handle_read(const asio::error_code& error,
                    size_t bytes_written){
-      act_on_message(*this, to_string(b));
+      string s = to_string(b);
+      strip(s);
+      act_on_message(*this, s);
   }
 
   void handle_write()
@@ -247,16 +250,12 @@ public:
   {
   }
   void write_message(string s){
-      vector<bufarr> bufvec;
-      make_buf_vec(bufvec,s);
-
-      for(bufarr & arr : bufvec){
-        socket_.async_send_to(asio::buffer(arr),endpoint,
+      s.reserve(bufsize);
+        socket_.async_send_to(asio::buffer(s.c_str(),s.size()+1),endpoint,
                    boost::bind(&udp_server::handle_send,this,asio::placeholders::error(),asio::placeholders::bytes_transferred()));
-      }
   }
   void return_error(){
-      write_message("ERROR\n");
+      write_message("ERROR");
   }
   cache_t & cache(){
       return port_cache->impl;
@@ -264,25 +263,21 @@ public:
 
   void start_receive()
   {
-      socket_.async_receive_from(asio::buffer(buf),endpoint,
+      socket_.async_receive_from(asio::buffer(recbuf),endpoint,
                           boost::bind(&udp_server::handle_receive, this,
-                          asio::placeholders::error,asio::placeholders::bytes_transferred()));
+                          asio::placeholders::error(),asio::placeholders::bytes_transferred()));
   }
   void handle_receive(const asio::error_code& error,size_t bytes_written)
   {
     if (!error){
-        //can be made more optimal with a special case for get_packet_num(buf) == 0
-        if(get_packet_num(buf) != packet_count){
-            packet_count = 0;
-            recv_data.clear();
-        }
-        else if(add_to_str_finished(buf,recv_data,'\n')){
-            packet_count = 0;
-            act_on_message(*this,recv_data);
-            recv_data.clear();
+        size_t endloc = find_in_buf(recbuf,char(0));
+        if(endloc != string::npos){
+            string act_str(recbuf.begin(),recbuf.begin()+endloc);
+            strip(act_str);
+            act_on_message(*this,act_str);
         }
         else{
-            packet_count += 1;
+            return_error();
         }
     }
     start_receive();
@@ -293,9 +288,7 @@ public:
   udp::socket socket_;
   udp::endpoint endpoint;
   safe_cache * port_cache;//non-owning
-  string recv_data;
-  bufarr buf;
-  uint32_t packet_count = 0;
+  bufarr recbuf;
 };
 
 void run_server(int tcp_port,int udp_port,int maxmem){

@@ -45,7 +45,7 @@ int main(int argn,char ** argv){
     return 0;
 #endif
 #ifdef DEBUG
-    uint64_t test_num = 12;
+    uint64_t test_num = 21;
 #else
     if(argn != 2){
         printf("needs one argument\n");

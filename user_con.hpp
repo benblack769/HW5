@@ -9,7 +9,7 @@
 using namespace asio;
 using namespace asio::ip;
 
-constexpr size_t bufsize = 1 << 15;
+constexpr size_t bufsize = (1 << 16) - 32;
 const std::string errstr = "ERROR";
 
 //class udp_connection;
@@ -25,4 +25,18 @@ size_t find_in_buf(bufarr & buf,char c){
         }
     }
     return std::string::npos;
+}
+bool is_white_space(char c){
+    //first one is non-standard, but useful in my application
+    return c == char(0) || c == ' ' || c == '\n' || c == '\r' || c == '\t';
+}
+
+void strip(std::string & str){
+    size_t strs = str.size();
+    for(int i = strs-1; i >= 0;i--){
+        if(!is_white_space(str[i])){
+            str.resize(i+1);
+            break;
+        }
+    }
 }
